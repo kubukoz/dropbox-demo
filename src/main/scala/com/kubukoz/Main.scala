@@ -2,7 +2,6 @@ package com.kubukoz
 
 import scala.concurrent.duration._
 
-import cats.Defer
 import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.MonadThrow
@@ -40,7 +39,7 @@ object Indexer {
 
 object Routing {
 
-  def routes[F[_]: Defer: MonadThrow: Indexer: JsonDecoder]: HttpRoutes[F] = {
+  def routes[F[_]: MonadThrow: Indexer: JsonDecoder]: HttpRoutes[F] = {
     object dsl extends Http4sDsl[F]
     import dsl._
     import io.circe.syntax._
@@ -58,7 +57,7 @@ object Routing {
 
 object Application {
 
-  def build[F[_]: Temporal: Defer]: HttpRoutes[F] = {
+  def build[F[_]: Temporal]: HttpRoutes[F] = {
     implicit val indexer: Indexer[F] = new Indexer[F] {
       def search(query: String): Stream[F, SearchResult] =
         Stream
