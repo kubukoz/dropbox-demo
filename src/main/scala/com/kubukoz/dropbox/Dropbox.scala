@@ -4,6 +4,7 @@ package com.kubukoz.dropbox
 import scala.concurrent.duration._
 
 import cats.Functor
+import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.Temporal
@@ -13,6 +14,7 @@ import fs2.Stream
 import io.circe.literal._
 import org.http4s.AuthScheme
 import org.http4s.Credentials
+import org.http4s.Header
 import org.http4s.Response
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.circe._
@@ -20,11 +22,13 @@ import org.http4s.client.Client
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.client.middleware.Logger
+import org.http4s.client.middleware.ResponseLogger
 import org.http4s.client.middleware.Retry
 import org.http4s.client.middleware.RetryPolicy
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.Authorization
 import org.http4s.implicits._
+import org.typelevel.ci.CIString
 
 import util.chaining._
 
@@ -33,16 +37,35 @@ object Demo extends IOApp.Simple {
   def run: IO[Unit] = BlazeClientBuilder[IO](runtime.compute)
     .stream
     .map(
-      Logger(logHeaders = true, logBody = true, logAction = Some(s => IO.println(s)))
+      Logger.colored[IO](
+        logHeaders = true,
+        // For now there doesn't seem to be a way to hide body logging
+        logBody = false,
+        // https://github.com/http4s/http4s/issues/4647
+        responseColor = ResponseLogger.defaultResponseColor _,
+        logAction = Some(s => IO.println(s))
+      )
     )
     .flatMap { implicit c =>
       implicit val drop = Dropbox
         .instance(System.getenv("DROPBOX_TOKEN"))
 
-      DropboxFileStream.instance[IO].streamFolder(Path.Root)
+      DropboxFileStream
+        .instance[IO]
+        .streamFolder(Path.Relative(NonEmptyList.of("tony bullshitu", "ayy")))
+        .filter(_.`.tag` == File.Tag.File)
+        .debug(_.path_display)
+        .evalMap { file =>
+          drop
+            .download(file)
+            .chunks
+            .map(_.size)
+            .compile
+            .foldMonoid
+        }
     }
-    .map(_.path_display)
-    .foreach(IO.println(_))
+    .take(5)
+    .showLinesStdOut
     .compile
     .drain
 
@@ -51,6 +74,7 @@ object Demo extends IOApp.Simple {
 trait Dropbox[F[_]] {
   def listFolder(path: Path, recursive: Boolean): F[Paginable[File]]
   def listFolderContinue(cursor: String): F[Paginable[File]]
+  def download(file: File): Stream[F, Byte]
 }
 
 object Dropbox {
@@ -106,6 +130,19 @@ object Dropbox {
             }"""
           )
       )(decodeError)
+
+    def download(file: File): Stream[F, Byte] =
+      client
+        .stream {
+          POST(uri"https://content.dropboxapi.com/2/files/download")
+            .putHeaders(
+              Header.Raw(
+                name = CIString("Dropbox-API-Arg"),
+                value = json"""{"path": ${file.path_lower} }""".noSpaces
+              )
+            )
+        }
+        .flatMap(_.body) /* todo: error handling */
 
   }
 
