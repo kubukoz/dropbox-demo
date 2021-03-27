@@ -57,7 +57,7 @@ object ES {
           new RestHighLevelClient(
             RestClient
               .builder(
-                new HttpHost(host.show, port.show.toInt, scheme.value),
+                new HttpHost(host.show, port.show.toInt, scheme.value)
               )
               .setHttpClientConfigCallback {
                 _.setDefaultCredentialsProvider {
@@ -68,7 +68,7 @@ object ES {
                     )
                   }
                 }
-              },
+              }
           )
         }
       }
