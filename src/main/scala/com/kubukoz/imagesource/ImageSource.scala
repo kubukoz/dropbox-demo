@@ -1,4 +1,4 @@
-package com.kubukoz.filesource
+package com.kubukoz.imagesource
 
 import cats.effect.IO
 import cats.effect.IOApp
@@ -39,7 +39,7 @@ object Demo extends IOApp.Simple {
       implicit val drop = Dropbox
         .instance(System.getenv("DROPBOX_TOKEN"))
 
-      FileSource
+      ImageSource
         .dropboxInstance[IO]
         .streamFolder(
           Path("tony bullshitu/ayy")
@@ -61,14 +61,14 @@ object Demo extends IOApp.Simple {
 
 }
 
-trait FileSource[F[_]] {
+trait ImageSource[F[_]] {
   def streamFolder(rawPath: Path): Stream[F, FileData[F]]
 }
 
-object FileSource {
-  def apply[F[_]](implicit F: FileSource[F]): FileSource[F] = F
+object ImageSource {
+  def apply[F[_]](implicit F: ImageSource[F]): ImageSource[F] = F
 
-  def dropboxInstance[F[_]: Dropbox: MonadCancelThrow]: FileSource[F] = rawPath =>
+  def dropboxInstance[F[_]: Dropbox: MonadCancelThrow]: ImageSource[F] = rawPath =>
     Stream
       .eval(dropbox.Path.parse(rawPath.value).leftMap(new Throwable(_)).liftTo[F])
       .flatMap { path =>

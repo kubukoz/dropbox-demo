@@ -7,7 +7,7 @@ import cats.effect.kernel.Sync
 import cats.implicits._
 import com.kubukoz.dropbox.Dropbox
 import com.kubukoz.elasticsearch.ES
-import com.kubukoz.filesource.FileSource
+import com.kubukoz.imagesource.ImageSource
 import com.kubukoz.indexer.Indexer
 import com.kubukoz.ocr.OCR
 import com.kubukoz.ocrapi.OCRAPI
@@ -33,7 +33,7 @@ object Demo extends IOApp.Simple {
     )
     .flatMap { implicit client =>
       implicit val drop = Dropbox.instance[IO](System.getenv("DROPBOX_TOKEN"))
-      implicit val fs = FileSource.dropboxInstance[IO]
+      implicit val is = ImageSource.dropboxInstance[IO]
 
       implicit val ocrapi = OCRAPI.instance[IO](System.getenv("OCRAPI_TOKEN"))
       implicit val ocr = OCR.ocrapiInstance[IO]
@@ -73,11 +73,11 @@ trait IndexPipeline[F[_]] {
 object IndexPipeline {
   def apply[F[_]](implicit F: IndexPipeline[F]): IndexPipeline[F] = F
 
-  def instance[F[_]: FileSource: OCR: Indexer: MonadThrow]: IndexPipeline[F] =
+  def instance[F[_]: ImageSource: OCR: Indexer: MonadThrow]: IndexPipeline[F] =
     new IndexPipeline[F] {
 
       def run(path: Path): Stream[F, Either[Throwable, Unit]] =
-        FileSource[F]
+        ImageSource[F]
           .streamFolder(path)
           .evalMap { data =>
             OCR[F]
