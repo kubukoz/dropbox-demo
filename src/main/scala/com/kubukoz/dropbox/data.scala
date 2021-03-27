@@ -13,6 +13,11 @@ import io.circe.syntax._
 import fs2.Stream
 import com.kubukoz.shared.FileData
 import org.http4s.MediaType
+import com.kubukoz.util.DiscriminatorCodecs
+
+private object Encoding {
+  val codecs: DiscriminatorCodecs = DiscriminatorCodecs.withDiscriminator(".tag")
+}
 
 final case class ErrorResponse(error: String, error_summary: String, user_message: String) extends Throwable {
   // weird but ok for now
@@ -59,32 +64,33 @@ object Paginable {
 
 }
 
-//note: .tag is the union key, should update this to behave as such
-// https://www.dropbox.com/developers/documentation/http/documentation (User endpoints)
-final case class File(`.tag`: File.Tag, name: String, path_lower: String, path_display: String, id: String)
+sealed trait File extends Product with Serializable {
+  // uh I don't like this but ok
+  def name: String
+  def path_lower: String
+  def path_display: String
+  def id: String
+}
 
 object File {
-  implicit val codec: Codec.AsObject[File] = deriveCodec
+  final case class Folder(name: String, path_lower: String, path_display: String, id: String) extends File
+  final case class NormalFile(name: String, path_lower: String, path_display: String, id: String) extends File
 
-  sealed trait Tag extends Product with Serializable
+  import Encoding.codecs._
 
-  object Tag {
-    case object Folder extends Tag
-    case object File extends Tag
-
-    implicit val codec: Codec[Tag] = Codec.from(
-      Decoder[String].emap {
-        case "folder" => Folder.asRight
-        case "file"   => File.asRight
-        case tag      => s"Unknown tag: $tag".asLeft
-      },
-      Encoder[String].contramap {
-        case Folder => "folder"
-        case File   => "file"
-      },
-    )
-
-  }
+  implicit val codec: Codec.AsObject[File] =
+    Codec
+      .AsObject
+      .from(
+        byTypeDecoder[File](
+          "file" -> deriveCodec[NormalFile],
+          "folder" -> deriveCodec[Folder],
+        ),
+        {
+          case f: Folder     => encodeWithType("folder", f)(deriveCodec)
+          case f: NormalFile => encodeWithType("file", f)(deriveCodec)
+        },
+      )
 
 }
 

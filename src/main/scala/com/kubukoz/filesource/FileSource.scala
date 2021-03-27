@@ -70,7 +70,9 @@ object FileSource {
             case Some(cursor) => Dropbox[F].listFolderContinue(cursor)
           }
       }
-      .filter(_.`.tag` == dropbox.File.Tag.File)
+      .collect { case f: dropbox.File.NormalFile =>
+        f
+      }
       .flatMap(Dropbox[F].download(_).pipe(Stream.resource(_)))
       .map(_.toFileData)
 
