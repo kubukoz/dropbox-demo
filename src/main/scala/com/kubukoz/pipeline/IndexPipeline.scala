@@ -1,23 +1,19 @@
 package com.kubukoz.pipeline
 
-import java.io.PrintStream
-
 import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.MonadThrow
-import cats.effect.kernel.Async
 import cats.effect.kernel.Sync
-import cats.effect.std
 import cats.implicits._
+import com.kubukoz.dropbox.Dropbox
+import com.kubukoz.elasticsearch.ES
 import com.kubukoz.filesource.FileSource
 import com.kubukoz.indexer.Indexer
 import com.kubukoz.ocr.OCR
+import com.kubukoz.ocrapi.OCRAPI
 import com.kubukoz.shared.Path
 import fs2.Stream
 import org.http4s.client.blaze.BlazeClientBuilder
-import com.kubukoz.dropbox.Dropbox
-import com.kubukoz.ocrapi.OCRAPI
-import com.kubukoz.elasticsearch.ES
 
 object Demo extends IOApp.Simple {
 
@@ -51,6 +47,7 @@ object Demo extends IOApp.Simple {
         }
     }
     .take(5L)
+    .debug()
     .compile
     .drain
 
@@ -92,17 +89,7 @@ object IndexPipeline {
   object ErrorPrinter {
     def apply[F[_]](implicit F: ErrorPrinter[F]): ErrorPrinter[F] = F
 
-    def forAsyncConsole[F[_]: Async: std.Console]: ErrorPrinter[F] = e =>
-      fs2
-        .io
-        .readOutputStream[F](4096) { os =>
-          Sync[F].delay(e.printStackTrace(new PrintStream(os)))
-        }
-        .through(fs2.text.utf8Decode[F])
-        .compile
-        .string
-        .flatMap(std.Console[F].errorln(_))
-
+    def forAsyncConsole[F[_]: Sync]: ErrorPrinter[F] = e => Sync[F].delay(e.printStackTrace())
   }
 
 }
