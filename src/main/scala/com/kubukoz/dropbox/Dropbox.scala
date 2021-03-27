@@ -4,10 +4,8 @@ package com.kubukoz.dropbox
 import scala.concurrent.duration._
 
 import cats.Functor
-import cats.data.NonEmptyList
-import cats.effect.IO
-import cats.effect.IOApp
 import cats.effect.Temporal
+import cats.effect.kernel.Resource
 import cats.implicits._
 import com.kubukoz.dropbox
 import fs2.Stream
@@ -19,10 +17,7 @@ import org.http4s.Response
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.circe._
 import org.http4s.client.Client
-import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.client.middleware.Logger
-import org.http4s.client.middleware.ResponseLogger
 import org.http4s.client.middleware.Retry
 import org.http4s.client.middleware.RetryPolicy
 import org.http4s.dsl.Http4sDsl
@@ -32,49 +27,10 @@ import org.typelevel.ci.CIString
 
 import util.chaining._
 
-object Demo extends IOApp.Simple {
-
-  def run: IO[Unit] = BlazeClientBuilder[IO](runtime.compute)
-    .stream
-    .map(
-      Logger.colored[IO](
-        logHeaders = true,
-        // For now there doesn't seem to be a way to hide body logging
-        logBody = false,
-        // https://github.com/http4s/http4s/issues/4647
-        responseColor = ResponseLogger.defaultResponseColor _,
-        logAction = Some(s => IO.println(s)),
-      )
-    )
-    .flatMap { implicit c =>
-      implicit val drop = Dropbox
-        .instance(System.getenv("DROPBOX_TOKEN"))
-
-      DropboxFileStream
-        .instance[IO]
-        .streamFolder(Path.Relative(NonEmptyList.of("tony bullshitu", "ayy")))
-        .filter(_.`.tag` == File.Tag.File)
-        .debug(_.path_display)
-        .evalMap { file =>
-          drop
-            .download(file)
-            .chunks
-            .map(_.size)
-            .compile
-            .foldMonoid
-        }
-    }
-    .take(5)
-    .showLinesStdOut
-    .compile
-    .drain
-
-}
-
 trait Dropbox[F[_]] {
   def listFolder(path: Path, recursive: Boolean): F[Paginable[File]]
   def listFolderContinue(cursor: String): F[Paginable[File]]
-  def download(file: File): Stream[F, Byte]
+  def download(file: File): Resource[F, FileDownload[F]]
 }
 
 object Dropbox {
@@ -131,9 +87,9 @@ object Dropbox {
           )
       )(decodeError)
 
-    def download(file: File): Stream[F, Byte] =
+    def download(file: File): Resource[F, FileDownload[F]] =
       client
-        .stream {
+        .run {
           POST(uri"https://content.dropboxapi.com/2/files/download")
             .putHeaders(
               Header.Raw(
@@ -142,7 +98,11 @@ object Dropbox {
               )
             )
         }
-        .flatMap(_.body) /* todo: error handling */
+        .map { response =>
+          FileDownload(
+            data = response.body
+          )
+        }
 
   }
 
@@ -157,19 +117,5 @@ object Dropbox {
       }
     }
     .flatMap(fs2.Stream.emits)
-
-}
-
-trait DropboxFileStream[F[_]] {
-  def streamFolder(path: Path): Stream[F, File]
-}
-
-object DropboxFileStream {
-
-  def instance[F[_]: Functor: Dropbox]: DropboxFileStream[F] = path =>
-    Dropbox.paginate {
-      case None         => Dropbox[F].listFolder(path, recursive = true)
-      case Some(cursor) => Dropbox[F].listFolderContinue(cursor)
-    }
 
 }

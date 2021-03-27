@@ -10,6 +10,10 @@ import io.circe.generic.semiauto._
 import io.circe.literal._
 import io.circe.syntax._
 
+import fs2.Stream
+import com.kubukoz.shared.FileData
+import org.http4s.MediaType
+
 final case class ErrorResponse(error: String, error_summary: String, user_message: String) extends Throwable {
   // weird but ok for now
   override def getMessage(): String = this.asJson.noSpaces
@@ -19,22 +23,27 @@ object ErrorResponse {
   implicit val codec: Codec[ErrorResponse] = deriveCodec
 }
 
-sealed trait Path extends Product with Serializable
+sealed trait Path extends Product with Serializable {
+
+  def render: String = this match {
+    case Path.Root               => ""
+    case Path.Relative(segments) => segments.mkString_("/", "/", "")
+  }
+
+}
 
 object Path {
-  //todo: we're not really using this
   final case class Relative(segments: NonEmptyList[String]) extends Path
   case object Root extends Path
 
+  def parse(path: String): Either[String, Path] = path match {
+    case ""   => Root.asRight
+    case path => path.split("\\/").toList.toNel.toRight("Path must start with a slash, but didn't contain any").map(Relative(_))
+  }
+
   implicit val codec: Codec[Path] = Codec.from(
-    Decoder[String].emap {
-      case ""   => Root.asRight
-      case path => path.split("\\/").toList.toNel.toRight("Path must start with a slash, but didn't contain any").map(Relative(_))
-    },
-    Encoder[String].contramap {
-      case Root               => ""
-      case Relative(segments) => segments.mkString_("/", "/", "")
-    },
+    Decoder[String].emap(parse),
+    Encoder[String].contramap(_.render),
   )
 
 }
@@ -76,5 +85,15 @@ object File {
     )
 
   }
+
+}
+
+final case class FileDownload[F[_]](data: Stream[F, Byte] /* todo: metadata */ ) {
+
+  def toFileData: FileData[F] = FileData(
+    content = data,
+    name = "example.png",
+    mediaType = MediaType.image.png, /* todo use metadata */
+  )
 
 }

@@ -1,27 +1,28 @@
 package com.kubukoz.ocrapi
 
+import java.nio.file.Paths
+
 import cats.effect.Concurrent
+import cats.effect.IO
+import cats.effect.IOApp
 import cats.implicits._
-import fs2.Stream
+import com.kubukoz.shared.FileData
+import fs2.io.file.Files
+import io.circe.Json
 import org.http4s.Header
+import org.http4s.MediaType
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.client.Client
+import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.client.dsl.Http4sClientDsl
+import org.http4s.client.middleware.RequestLogger
+import org.http4s.client.middleware.ResponseLogger
 import org.http4s.dsl.Http4sDsl
+import org.http4s.headers.`Content-Type`
 import org.http4s.implicits._
 import org.http4s.multipart.Multipart
 import org.http4s.multipart.Part
 import org.typelevel.ci.CIString
-import cats.effect.IOApp
-import cats.effect.IO
-import org.http4s.client.blaze.BlazeClientBuilder
-import fs2.io.file.Files
-import java.nio.file.Paths
-import org.http4s.client.middleware.ResponseLogger
-import org.http4s.client.middleware.RequestLogger
-import org.http4s.headers.`Content-Type`
-import org.http4s.MediaType
-import io.circe.Json
 
 object Demo extends IOApp.Simple {
 
@@ -52,8 +53,6 @@ trait OCRAPI[F[_]] {
   //and call this api with an URL instead
   def decode(file: FileData[F]): F[Result]
 }
-
-final case class FileData[F[_]](content: Stream[F, Byte], name: String, mediaType: MediaType)
 
 object OCRAPI {
   def apply[F[_]](implicit F: OCRAPI[F]): OCRAPI[F] = F
