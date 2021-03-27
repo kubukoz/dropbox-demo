@@ -1,14 +1,13 @@
 package com.kubukoz.filesource
 
-import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.IOApp
-import cats.effect.kernel.MonadCancel
+import cats.effect.MonadCancelThrow
 import cats.implicits._
 import com.kubukoz.dropbox
 import com.kubukoz.dropbox.Dropbox
-import com.kubukoz.dropbox.Path
 import com.kubukoz.shared.FileData
+import com.kubukoz.shared.Path
 import fs2.Stream
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.client.middleware.Logger
@@ -36,7 +35,9 @@ object Demo extends IOApp.Simple {
 
       FileSource
         .dropboxInstance[IO]
-        .streamFolder(Path.Relative(NonEmptyList.of("tony bullshitu", "ayy")))
+        .streamFolder(
+          Path("tony bullshitu/ayy")
+        )
         .evalMap { file =>
           file
             .content
@@ -54,16 +55,20 @@ object Demo extends IOApp.Simple {
 }
 
 trait FileSource[F[_]] {
-  def streamFolder(path: Path): Stream[F, FileData[F]]
+  def streamFolder(rawPath: Path): Stream[F, FileData[F]]
 }
 
 object FileSource {
 
-  def dropboxInstance[F[_]: Dropbox](implicit MC: MonadCancel[F, _]): FileSource[F] = path =>
-    Dropbox
-      .paginate {
-        case None         => Dropbox[F].listFolder(path, recursive = true)
-        case Some(cursor) => Dropbox[F].listFolderContinue(cursor)
+  def dropboxInstance[F[_]: Dropbox: MonadCancelThrow]: FileSource[F] = rawPath =>
+    Stream
+      .eval(dropbox.Path.parse(rawPath.value).leftMap(new Throwable(_)).liftTo[F])
+      .flatMap { path =>
+        Dropbox
+          .paginate {
+            case None         => Dropbox[F].listFolder(path, recursive = true)
+            case Some(cursor) => Dropbox[F].listFolderContinue(cursor)
+          }
       }
       .filter(_.`.tag` == dropbox.File.Tag.File)
       .flatMap(Dropbox[F].download(_).pipe(Stream.resource(_)))
