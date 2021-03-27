@@ -24,13 +24,13 @@ trait Indexer[F[_]] {
 final case class SearchResult(uri: Uri)
 
 object SearchResult {
-  implicit val codec: Codec[SearchResult] = deriveCodec
+  implicit val codec: Codec.AsObject[SearchResult] = deriveCodec
 }
 
 final case class SearchRequest(query: String)
 
 object SearchRequest {
-  implicit val codec: Codec[SearchRequest] = deriveCodec
+  implicit val codec: Codec.AsObject[SearchRequest] = deriveCodec
 }
 
 object Indexer {

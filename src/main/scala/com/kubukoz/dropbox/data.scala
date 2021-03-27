@@ -20,7 +20,7 @@ final case class ErrorResponse(error: String, error_summary: String, user_messag
 }
 
 object ErrorResponse {
-  implicit val codec: Codec[ErrorResponse] = deriveCodec
+  implicit val codec: Codec.AsObject[ErrorResponse] = deriveCodec
 }
 
 sealed trait Path extends Product with Serializable {
@@ -52,7 +52,7 @@ final case class Paginable[Element](entries: List[Element], cursor: String, has_
 
 object Paginable {
 
-  implicit def codec[E: Codec]: Codec[Paginable[E]] = {
+  implicit def codec[E: Codec.AsObject]: Codec.AsObject[Paginable[E]] = {
     identity(Codec[E])
     deriveCodec
   }
@@ -64,7 +64,7 @@ object Paginable {
 final case class File(`.tag`: File.Tag, name: String, path_lower: String, path_display: String, id: String)
 
 object File {
-  implicit val codec: Codec[File] = deriveCodec
+  implicit val codec: Codec.AsObject[File] = deriveCodec
 
   sealed trait Tag extends Product with Serializable
 

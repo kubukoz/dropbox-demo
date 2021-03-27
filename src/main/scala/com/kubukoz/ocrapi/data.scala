@@ -9,11 +9,11 @@ final case class Result(
 )
 
 object Result {
-  implicit val codec: Codec[Result] = deriveCodec
+  implicit val codec: Codec.AsObject[Result] = deriveCodec
 }
 
 final case class ParsedResult(ParsedText: String)
 
 object ParsedResult {
-  implicit val codec: Codec[ParsedResult] = deriveCodec
+  implicit val codec: Codec.AsObject[ParsedResult] = deriveCodec
 }
