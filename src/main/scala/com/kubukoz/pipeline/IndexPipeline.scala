@@ -16,9 +16,11 @@ import fs2.Stream
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.client.middleware.Logger
 import org.http4s.client.middleware.ResponseLogger
-import cats.data.OptionT
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object Demo extends IOApp.Simple {
+
+  val logger = Slf4jLogger.getLogger[IO]
 
   def run: IO[Unit] = BlazeClientBuilder[IO](runtime.compute)
     .stream
@@ -29,7 +31,7 @@ object Demo extends IOApp.Simple {
         logBody = false,
         // https://github.com/http4s/http4s/issues/4647
         responseColor = ResponseLogger.defaultResponseColor _,
-        logAction = Some(s => IO.println(s)),
+        logAction = Some(logger.debug(_)),
       )
     )
     .flatMap { implicit client =>

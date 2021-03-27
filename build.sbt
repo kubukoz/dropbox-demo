@@ -24,6 +24,8 @@ lazy val root = (project in file(".")).settings(
     "io.circe" %% "circe-parser" % "0.14.0-M4",
     "io.circe" %% "circe-generic" % "0.14.0-M4",
     "com.kubukoz" %% "http4s-oauth2" % "0.8.0+12-6704058a-SNAPSHOT",
+    // only while odin hasn't released - hopefully
+    "org.typelevel" %% "log4cats-slf4j" % "2.0.0-RC1",
     "ch.qos.logback" % "logback-classic" % "1.2.3",
     "org.elasticsearch.client" % "elasticsearch-rest-high-level-client" % "7.12.0",
     "is.cir" %% "ciris" % "2.0.0-RC1",
