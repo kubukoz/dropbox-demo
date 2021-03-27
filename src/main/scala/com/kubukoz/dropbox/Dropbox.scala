@@ -106,7 +106,6 @@ object Dropbox {
 
   }
 
-  //todo: untested
   def paginate[F[_]: Functor, Element](fetch: Option[String] => F[Paginable[Element]]): Stream[F, Element] = Stream
     .unfoldLoopEval[F, Option[String], List[Element]](Option.empty[String]) {
       fetch(_).map { pagin =>
