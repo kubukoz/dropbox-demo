@@ -19,6 +19,7 @@ object OCR {
       .map(
         _.ParsedResults.map(_.ParsedText)
       )
+      .map(_.filter(_.trim.nonEmpty))
 
   }
 

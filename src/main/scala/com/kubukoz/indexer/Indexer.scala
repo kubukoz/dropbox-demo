@@ -12,6 +12,7 @@ object Indexer {
   def apply[F[_]](implicit F: Indexer[F]): Indexer[F] = F
 
   def elasticSearch[F[_]: ES]: Indexer[F] = new Indexer[F] {
+    //todo: ignore empty lists here
     def index(data: FileMetadata, decoded: List[String]): F[Unit] = ???
     def search(query: String): fs2.Stream[F, SearchResult] = ???
   }

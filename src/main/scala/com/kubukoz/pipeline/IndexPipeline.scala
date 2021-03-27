@@ -16,6 +16,7 @@ import fs2.Stream
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.client.middleware.Logger
 import org.http4s.client.middleware.ResponseLogger
+import cats.data.OptionT
 
 object Demo extends IOApp.Simple {
 
@@ -58,7 +59,7 @@ object Demo extends IOApp.Simple {
           IndexPipeline.instance[IO]
         }
     }
-    .flatMap(_.run(Path("tony bullshitu/ayy")))
+    .flatMap(_.run(Path("Camera Uploads/snapy")))
     .take(5L)
     .debug()
     .compile
@@ -82,9 +83,7 @@ object IndexPipeline {
           .evalMap { data =>
             OCR[F]
               .decodeText(data)
-              .flatMap {
-                Indexer[F].index(data.metadata, _)
-              }
+              .flatMap(Indexer[F].index(data.metadata, _))
               .attempt
           }
 
