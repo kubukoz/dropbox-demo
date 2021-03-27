@@ -1,0 +1,10 @@
+services:
+  elastic:
+    environment:
+      discovery.type: single-node
+      opendistro_security.ssl.http.enabled: 'false'
+    image: amazon/opendistro-for-elasticsearch:1.13.1
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+version: '3'
