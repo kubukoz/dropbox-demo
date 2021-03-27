@@ -81,6 +81,7 @@ object FileSource {
       .collect { case f: Metadata.FileMetadata => f }
       .flatMap(Dropbox[F].download(_).pipe(Stream.resource(_)))
       .evalMap(toFileData[F])
+      .filter(_.metadata.mediaType.isImage)
 
   def toFileData[F[_]: MonadThrow](fd: FileDownload[F]): F[FileData[F]] =
     FileUtils
