@@ -76,6 +76,10 @@ object Metadata {
   final case class FolderMetadata(name: String, path_lower: String, path_display: String, id: String) extends Metadata
   final case class FileMetadata(name: String, path_lower: String, path_display: String, id: String) extends Metadata
 
+  object FileMetadata {
+    implicit val codec: Codec.AsObject[FileMetadata] = deriveCodec
+  }
+
   import Encoding.codecs._
 
   implicit val codec: Codec.AsObject[Metadata] =
@@ -88,10 +92,10 @@ object Metadata {
         ),
         {
           case f: FolderMetadata => encodeWithType("folder", f)(deriveCodec)
-          case f: FileMetadata   => encodeWithType("file", f)(deriveCodec)
+          case f: FileMetadata   => encodeWithType("file", f)
         },
       )
 
 }
 
-final case class FileDownload[F[_]](data: Stream[F, Byte], metadata: Metadata)
+final case class FileDownload[F[_]](data: Stream[F, Byte], metadata: Metadata.FileMetadata)
