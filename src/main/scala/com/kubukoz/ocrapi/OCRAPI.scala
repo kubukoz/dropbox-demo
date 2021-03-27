@@ -32,8 +32,8 @@ object Demo extends IOApp.Simple {
       .map(ResponseLogger(logHeaders = true, logBody = true, logAction = Some(IO.println(_))))
       .evalMap { implicit client =>
         IO.defer {
-          //note: if the file doesn't exist the app hangs. weird, should be investigated
-          val src = Files[IO].readAll(Paths.get("example.png"), 4096)
+          val p = Paths.get("example.png")
+          val src = FileData(Files[IO].readAll(p, 4096), "example.png", MediaType.image.png)
 
           val api = OCRAPI.instance[IO](System.getenv("OCRAPI_TOKEN"))
 
@@ -50,8 +50,10 @@ trait OCRAPI[F[_]] {
   //possible way to do this: before downloading the file from dropbox,
   //check the size and possibly forward the bytes to a file hosting service (S3? free alternatives? imgur?)
   //and call this api with an URL instead
-  def decode(data: Stream[F, Byte]): F[Result]
+  def decode(file: FileData[F]): F[Result]
 }
+
+final case class FileData[F[_]](content: Stream[F, Byte], name: String, mediaType: MediaType)
 
 object OCRAPI {
   def apply[F[_]](implicit F: OCRAPI[F]): OCRAPI[F] = F
@@ -66,22 +68,18 @@ object OCRAPI {
     } /* todo retries? */
 
     //todo: needs file name/type - to check: do we have mimetype in dropbox response?
-    def decode(data: Stream[F, Byte]): F[Result] =
+    def decode(file: FileData[F]): F[Result] =
       client
         .expect[Json] {
           val body = Multipart[F](
             Vector(
-              //todo these should work huh?
-              // Part.formData("language", "eng"),
-              // Part.formData("isOverlayRequired", "true"),
-              // Part.formData("filetype", "PNG"),
-              Part.fileData[F]("file", "example.png", data, `Content-Type`(MediaType.image.png))
+              Part.formData("language", "pol"),
+              Part.fileData[F]("file", file.name, file.content, `Content-Type`(file.mediaType)),
             )
           )
+
           POST(uri"https://api.ocr.space/parse/image")
-            .withEntity(
-              body
-            )
+            .withEntity(body)
             //this is a workaround, I think the EntityEncoder instance of Multipart should be doing this
             .putHeaders(body.headers.headers)
         }

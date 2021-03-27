@@ -12,7 +12,7 @@ val compilerPlugins = List(
 )
 
 lazy val root = (project in file(".")).settings(
-  name := "ce3.g8",
+  name := "dropbox-demo",
   libraryDependencies ++= Seq(
     "org.typelevel" %% "cats-effect" % "3.0.0-RC2",
     "co.fs2" %% "fs2-core" % "3.0.0-M9",
