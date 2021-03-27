@@ -23,6 +23,7 @@ import org.http4s.implicits._
 import org.http4s.multipart.Multipart
 import org.http4s.multipart.Part
 import org.typelevel.ci.CIString
+import com.kubukoz.shared.FileMetadata
 
 object Demo extends IOApp.Simple {
 
@@ -34,7 +35,7 @@ object Demo extends IOApp.Simple {
       .evalMap { implicit client =>
         IO.defer {
           val p = Paths.get("example.png")
-          val src = FileData(Files[IO].readAll(p, 4096), "example.png", MediaType.image.png)
+          val src = FileData(Files[IO].readAll(p, 4096), FileMetadata("example.png", MediaType.image.png))
 
           val api = OCRAPI.instance[IO](System.getenv("OCRAPI_TOKEN"))
 
@@ -73,7 +74,7 @@ object OCRAPI {
           val body = Multipart[F](
             Vector(
               Part.formData("language", "pol"),
-              Part.fileData[F]("file", file.name, file.content, `Content-Type`(file.mediaType)),
+              Part.fileData[F]("file", file.metadata.name, file.content, `Content-Type`(file.metadata.mediaType)),
             )
           )
 

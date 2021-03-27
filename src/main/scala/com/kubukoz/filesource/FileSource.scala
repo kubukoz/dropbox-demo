@@ -7,6 +7,7 @@ import cats.implicits._
 import com.kubukoz.dropbox
 import com.kubukoz.dropbox.Dropbox
 import com.kubukoz.shared.FileData
+import com.kubukoz.shared.FileMetadata
 import com.kubukoz.shared.Path
 import fs2.Stream
 import org.http4s.client.blaze.BlazeClientBuilder
@@ -43,7 +44,7 @@ object Demo extends IOApp.Simple {
         .streamFolder(
           Path("tony bullshitu/ayy")
         )
-        .map(_.mediaType)
+        .map(_.metadata)
         .debug()
     // .evalMap { file =>
     //   file
@@ -55,7 +56,6 @@ object Demo extends IOApp.Simple {
     // }
     }
     .take(5)
-    .showLinesStdOut
     .compile
     .drain
 
@@ -66,6 +66,7 @@ trait FileSource[F[_]] {
 }
 
 object FileSource {
+  def apply[F[_]](implicit F: FileSource[F]): FileSource[F] = F
 
   def dropboxInstance[F[_]: Dropbox: MonadCancelThrow]: FileSource[F] = rawPath =>
     Stream
@@ -88,8 +89,10 @@ object FileSource {
       .map { mediaType =>
         FileData(
           content = fd.data,
-          name = fd.metadata.name,
-          mediaType = mediaType,
+          metadata = FileMetadata(
+            name = fd.metadata.name,
+            mediaType = mediaType,
+          ),
         )
 
       }

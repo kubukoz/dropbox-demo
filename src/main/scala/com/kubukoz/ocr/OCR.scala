@@ -10,6 +10,7 @@ trait OCR[F[_]] {
 }
 
 object OCR {
+  def apply[F[_]](implicit F: OCR[F]): OCR[F] = F
 
   def ocrapiInstance[F[_]: OCRAPI: Functor]: OCR[F] = new OCR[F] {
 
