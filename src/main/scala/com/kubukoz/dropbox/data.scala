@@ -11,8 +11,6 @@ import io.circe.literal._
 import io.circe.syntax._
 
 import fs2.Stream
-import com.kubukoz.shared.FileData
-import org.http4s.MediaType
 import com.kubukoz.util.DiscriminatorCodecs
 
 private object Encoding {
@@ -53,6 +51,8 @@ object Path {
 
 }
 
+// ListFolderResult in dropbox api
+// https://www.dropbox.com/developers/documentation/http/documentation#files-list_folder
 final case class Paginable[Element](entries: List[Element], cursor: String, has_more: Boolean)
 
 object Paginable {
@@ -64,7 +64,7 @@ object Paginable {
 
 }
 
-sealed trait File extends Product with Serializable {
+sealed trait FileMetadata extends Product with Serializable {
   // uh I don't like this but ok
   def name: String
   def path_lower: String
@@ -72,17 +72,17 @@ sealed trait File extends Product with Serializable {
   def id: String
 }
 
-object File {
-  final case class Folder(name: String, path_lower: String, path_display: String, id: String) extends File
-  final case class NormalFile(name: String, path_lower: String, path_display: String, id: String) extends File
+object FileMetadata {
+  final case class Folder(name: String, path_lower: String, path_display: String, id: String) extends FileMetadata
+  final case class NormalFile(name: String, path_lower: String, path_display: String, id: String) extends FileMetadata
 
   import Encoding.codecs._
 
-  implicit val codec: Codec.AsObject[File] =
+  implicit val codec: Codec.AsObject[FileMetadata] =
     Codec
       .AsObject
       .from(
-        byTypeDecoder[File](
+        byTypeDecoder[FileMetadata](
           "file" -> deriveCodec[NormalFile],
           "folder" -> deriveCodec[Folder],
         ),
@@ -92,12 +92,6 @@ object File {
         },
       )
 
-}
-
-final case class FileMetadata()
-
-object FileMetadata {
-  implicit val codec: Codec.AsObject[FileMetadata] = deriveCodec
 }
 
 final case class FileDownload[F[_]](data: Stream[F, Byte], metadata: FileMetadata)

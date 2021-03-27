@@ -73,7 +73,7 @@ object FileSource {
             case Some(cursor) => Dropbox[F].listFolderContinue(cursor)
           }
       }
-      .collect { case f: dropbox.File.NormalFile => f }
+      .collect { case f: dropbox.FileMetadata.NormalFile => f }
       .flatMap(Dropbox[F].download(_).pipe(Stream.resource(_)))
       .evalMap(toFileData[F])
 
