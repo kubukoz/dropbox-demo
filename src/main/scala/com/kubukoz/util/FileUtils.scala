@@ -4,6 +4,6 @@ import cats.Applicative
 import cats.implicits._
 
 object FileUtils {
-  // just for now, lol
+  // lazy impl, good signature
   def extension[F[_]: Applicative](name: String): F[String] = name.split("\\.").last.pure[F]
 }

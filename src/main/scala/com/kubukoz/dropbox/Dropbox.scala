@@ -30,9 +30,9 @@ import org.typelevel.ci.CIString
 import util.chaining._
 
 trait Dropbox[F[_]] {
-  def listFolder(path: Path, recursive: Boolean): F[Paginable[FileMetadata]]
-  def listFolderContinue(cursor: String): F[Paginable[FileMetadata]]
-  def download(file: FileMetadata): Resource[F, FileDownload[F]]
+  def listFolder(path: Path, recursive: Boolean): F[Paginable[Metadata]]
+  def listFolderContinue(cursor: String): F[Paginable[Metadata]]
+  def download(file: Metadata): Resource[F, FileDownload[F]]
 }
 
 object Dropbox {
@@ -67,7 +67,7 @@ object Dropbox {
 
     private val listFolderUri = uri"https://api.dropboxapi.com/2/files/list_folder"
 
-    def listFolder(path: dropbox.Path, recursive: Boolean): F[Paginable[FileMetadata]] =
+    def listFolder(path: dropbox.Path, recursive: Boolean): F[Paginable[Metadata]] =
       client.expectOr(
         POST(listFolderUri)
           .withEntity(
@@ -79,7 +79,7 @@ object Dropbox {
           )
       )(decodeError)
 
-    def listFolderContinue(cursor: String): F[Paginable[FileMetadata]] =
+    def listFolderContinue(cursor: String): F[Paginable[Metadata]] =
       client.expectOr(
         POST(listFolderUri / "continue")
           .withEntity(
@@ -89,7 +89,7 @@ object Dropbox {
           )
       )(decodeError)
 
-    def download(file: FileMetadata): Resource[F, FileDownload[F]] = {
+    def download(file: Metadata): Resource[F, FileDownload[F]] = {
       val runRequest = client
         .run {
           POST(uri"https://content.dropboxapi.com/2/files/download")
@@ -103,7 +103,7 @@ object Dropbox {
 
       for {
         response <- runRequest
-        metadata <- Resource.eval(decodeHeaderBody[F, FileMetadata](response, CIString("Dropbox-API-Result")))
+        metadata <- Resource.eval(decodeHeaderBody[F, Metadata](response, CIString("Dropbox-API-Result")))
       } yield FileDownload(
         data = response.body,
         metadata = metadata,

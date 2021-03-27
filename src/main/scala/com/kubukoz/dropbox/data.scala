@@ -64,7 +64,7 @@ object Paginable {
 
 }
 
-sealed trait FileMetadata extends Product with Serializable {
+sealed trait Metadata extends Product with Serializable {
   // uh I don't like this but ok
   def name: String
   def path_lower: String
@@ -72,26 +72,26 @@ sealed trait FileMetadata extends Product with Serializable {
   def id: String
 }
 
-object FileMetadata {
-  final case class Folder(name: String, path_lower: String, path_display: String, id: String) extends FileMetadata
-  final case class NormalFile(name: String, path_lower: String, path_display: String, id: String) extends FileMetadata
+object Metadata {
+  final case class FolderMetadata(name: String, path_lower: String, path_display: String, id: String) extends Metadata
+  final case class FileMetadata(name: String, path_lower: String, path_display: String, id: String) extends Metadata
 
   import Encoding.codecs._
 
-  implicit val codec: Codec.AsObject[FileMetadata] =
+  implicit val codec: Codec.AsObject[Metadata] =
     Codec
       .AsObject
       .from(
-        byTypeDecoder[FileMetadata](
-          "file" -> deriveCodec[NormalFile],
-          "folder" -> deriveCodec[Folder],
+        byTypeDecoder[Metadata](
+          "file" -> deriveCodec[FileMetadata],
+          "folder" -> deriveCodec[FolderMetadata],
         ),
         {
-          case f: Folder     => encodeWithType("folder", f)(deriveCodec)
-          case f: NormalFile => encodeWithType("file", f)(deriveCodec)
+          case f: FolderMetadata => encodeWithType("folder", f)(deriveCodec)
+          case f: FileMetadata   => encodeWithType("file", f)(deriveCodec)
         },
       )
 
 }
 
-final case class FileDownload[F[_]](data: Stream[F, Byte], metadata: FileMetadata)
+final case class FileDownload[F[_]](data: Stream[F, Byte], metadata: Metadata)

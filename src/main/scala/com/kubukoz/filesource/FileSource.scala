@@ -14,9 +14,11 @@ import org.http4s.client.middleware.Logger
 import org.http4s.client.middleware.ResponseLogger
 
 import util.chaining._
-import cats.effect.ApplicativeThrow
 import com.kubukoz.dropbox.FileDownload
 import org.http4s.MediaType
+import com.kubukoz.util.FileUtils
+import cats.effect.MonadThrow
+import com.kubukoz.dropbox.Metadata
 
 object Demo extends IOApp.Simple {
 
@@ -41,14 +43,16 @@ object Demo extends IOApp.Simple {
         .streamFolder(
           Path("tony bullshitu/ayy")
         )
-        .evalMap { file =>
-          file
-            .content
-            .chunks
-            .map(_.size)
-            .compile
-            .foldMonoid
-        }
+        .map(_.mediaType)
+        .debug()
+    // .evalMap { file =>
+    //   file
+    //     .content
+    //     .chunks
+    //     .map(_.size)
+    //     .compile
+    //     .foldMonoid
+    // }
     }
     .take(5)
     .showLinesStdOut
@@ -73,14 +77,21 @@ object FileSource {
             case Some(cursor) => Dropbox[F].listFolderContinue(cursor)
           }
       }
-      .collect { case f: dropbox.FileMetadata.NormalFile => f }
+      .collect { case f: Metadata.FileMetadata => f }
       .flatMap(Dropbox[F].download(_).pipe(Stream.resource(_)))
       .evalMap(toFileData[F])
 
-  def toFileData[F[_]: ApplicativeThrow](fd: FileDownload[F]): F[FileData[F]] = FileData(
-    content = fd.data,
-    name = "example.png",
-    mediaType = MediaType.image.png, /* todo use metadata */
-  ).pure[F]
+  def toFileData[F[_]: MonadThrow](fd: FileDownload[F]): F[FileData[F]] =
+    FileUtils
+      .extension[F](fd.metadata.name)
+      .flatMap(ext => MediaType.forExtension(ext).liftTo[F](new Throwable(s"Unknown extension: $ext")))
+      .map { mediaType =>
+        FileData(
+          content = fd.data,
+          name = fd.metadata.name,
+          mediaType = mediaType,
+        )
+
+      }
 
 }
