@@ -94,12 +94,10 @@ object File {
 
 }
 
-final case class FileDownload[F[_]](data: Stream[F, Byte] /* todo: metadata */ ) {
+final case class FileMetadata()
 
-  def toFileData: FileData[F] = FileData(
-    content = data,
-    name = "example.png",
-    mediaType = MediaType.image.png, /* todo use metadata */
-  )
-
+object FileMetadata {
+  implicit val codec: Codec.AsObject[FileMetadata] = deriveCodec
 }
+
+final case class FileDownload[F[_]](data: Stream[F, Byte], metadata: FileMetadata)

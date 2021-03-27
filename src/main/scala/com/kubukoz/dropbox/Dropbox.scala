@@ -4,11 +4,13 @@ package com.kubukoz.dropbox
 import scala.concurrent.duration._
 
 import cats.Functor
+import cats.effect.MonadThrow
 import cats.effect.Temporal
 import cats.effect.kernel.Resource
 import cats.implicits._
 import com.kubukoz.dropbox
 import fs2.Stream
+import io.circe.Decoder
 import io.circe.literal._
 import org.http4s.AuthScheme
 import org.http4s.Credentials
@@ -87,8 +89,8 @@ object Dropbox {
           )
       )(decodeError)
 
-    def download(file: File): Resource[F, FileDownload[F]] =
-      client
+    def download(file: File): Resource[F, FileDownload[F]] = {
+      val runRequest = client
         .run {
           POST(uri"https://content.dropboxapi.com/2/files/download")
             .putHeaders(
@@ -98,13 +100,29 @@ object Dropbox {
               )
             )
         }
-        .map { response =>
-          FileDownload(
-            data = response.body
-          )
-        }
+
+      for {
+        response <- runRequest
+        metadata <- Resource.eval(decodeHeaderBody[F, FileMetadata](response, CIString("Dropbox-API-Result")))
+      } yield FileDownload(
+        data = response.body,
+        metadata = metadata,
+      )
+    }
 
   }
+
+  def decodeHeaderBody[F[_]: MonadThrow, A: Decoder](
+    response: Response[F],
+    headerName: CIString,
+  ): F[A] =
+    response
+      .headers
+      .get(headerName)
+      .liftTo[F](new Throwable(show"Missing header: $headerName"))
+      .ensure(new Throwable(show"Only one value was expected in header: $headerName"))(_.size === 1)
+      .map(_.head.value)
+      .flatMap(io.circe.parser.decode[A](_).liftTo[F])
 
   def paginate[F[_]: Functor, Element](fetch: Option[String] => F[Paginable[Element]]): Stream[F, Element] = Stream
     .unfoldLoopEval[F, Option[String], List[Element]](Option.empty[String]) {

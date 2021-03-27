@@ -14,6 +14,9 @@ import org.http4s.client.middleware.Logger
 import org.http4s.client.middleware.ResponseLogger
 
 import util.chaining._
+import cats.effect.ApplicativeThrow
+import com.kubukoz.dropbox.FileDownload
+import org.http4s.MediaType
 
 object Demo extends IOApp.Simple {
 
@@ -70,10 +73,14 @@ object FileSource {
             case Some(cursor) => Dropbox[F].listFolderContinue(cursor)
           }
       }
-      .collect { case f: dropbox.File.NormalFile =>
-        f
-      }
+      .collect { case f: dropbox.File.NormalFile => f }
       .flatMap(Dropbox[F].download(_).pipe(Stream.resource(_)))
-      .map(_.toFileData)
+      .evalMap(toFileData[F])
+
+  def toFileData[F[_]: ApplicativeThrow](fd: FileDownload[F]): F[FileData[F]] = FileData(
+    content = fd.data,
+    name = "example.png",
+    mediaType = MediaType.image.png, /* todo use metadata */
+  ).pure[F]
 
 }
