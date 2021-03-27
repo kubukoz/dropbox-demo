@@ -14,11 +14,23 @@ import com.kubukoz.ocrapi.OCRAPI
 import com.kubukoz.shared.Path
 import fs2.Stream
 import org.http4s.client.blaze.BlazeClientBuilder
+import org.http4s.client.middleware.Logger
+import org.http4s.client.middleware.ResponseLogger
 
 object Demo extends IOApp.Simple {
 
   def run: IO[Unit] = BlazeClientBuilder[IO](runtime.compute)
     .stream
+    .map(
+      Logger.colored[IO](
+        logHeaders = true,
+        // For now there doesn't seem to be a way to hide body logging
+        logBody = false,
+        // https://github.com/http4s/http4s/issues/4647
+        responseColor = ResponseLogger.defaultResponseColor _,
+        logAction = Some(s => IO.println(s)),
+      )
+    )
     .flatMap { implicit client =>
       implicit val drop = Dropbox.instance[IO](System.getenv("DROPBOX_TOKEN"))
       implicit val fs = FileSource.dropboxInstance[IO]
@@ -40,12 +52,13 @@ object Demo extends IOApp.Simple {
             password = "admin",
           )
         }
-        .flatMap { implicit es =>
+        .map { implicit es =>
           implicit val indexer = Indexer.elasticSearch[IO]
 
-          IndexPipeline.instance[IO].run(Path(""))
+          IndexPipeline.instance[IO]
         }
     }
+    .flatMap(_.run(Path("tony bullshitu/ayy")))
     .take(5L)
     .debug()
     .compile
