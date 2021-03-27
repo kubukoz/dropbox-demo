@@ -34,7 +34,7 @@ object Path {
     Encoder[String].contramap {
       case Root               => ""
       case Relative(segments) => segments.mkString_("/", "/", "")
-    }
+    },
   )
 
 }
@@ -72,7 +72,7 @@ object File {
       Encoder[String].contramap {
         case Folder => "folder"
         case File   => "file"
-      }
+      },
     )
 
   }

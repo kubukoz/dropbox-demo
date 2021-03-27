@@ -43,8 +43,8 @@ object Demo extends IOApp.Simple {
         logBody = false,
         // https://github.com/http4s/http4s/issues/4647
         responseColor = ResponseLogger.defaultResponseColor _,
-        logAction = Some(s => IO.println(s))
-      )
+        logAction = Some(s => IO.println(s)),
+      ),
     )
     .flatMap { implicit c =>
       implicit val drop = Dropbox
@@ -86,7 +86,7 @@ object Dropbox {
       implicitly[Client[F]].run(
         request
           //todo: this will have to be read from fiber context, or something
-          .putHeaders(Authorization(Credentials.Token(AuthScheme.Bearer, token)))
+          .putHeaders(Authorization(Credentials.Token(AuthScheme.Bearer, token))),
       )
     }.pipe(
       Retry[F](policy =
@@ -98,10 +98,10 @@ object Dropbox {
           retriable = (_, result) =>
             result.fold(
               (_: Throwable) => true,
-              !_.status.isSuccess
-            )
-        )
-      )
+              !_.status.isSuccess,
+            ),
+        ),
+      ),
     )
 
     //todo: toMessageSynax in http4s-circe xD
@@ -117,8 +117,8 @@ object Dropbox {
               "path": $path,
               "recursive": $recursive,
               "limit": 100
-            }"""
-          )
+            }""",
+          ),
       )(decodeError)
 
     def listFolderContinue(cursor: String): F[Paginable[File]] =
@@ -127,8 +127,8 @@ object Dropbox {
           .withEntity(
             json"""{
               "cursor": $cursor
-            }"""
-          )
+            }""",
+          ),
       )(decodeError)
 
     def download(file: File): Stream[F, Byte] =
@@ -138,8 +138,8 @@ object Dropbox {
             .putHeaders(
               Header.Raw(
                 name = CIString("Dropbox-API-Arg"),
-                value = json"""{"path": ${file.path_lower} }""".noSpaces
-              )
+                value = json"""{"path": ${file.path_lower} }""".noSpaces,
+              ),
             )
         }
         .flatMap(_.body) /* todo: error handling */
@@ -152,7 +152,7 @@ object Dropbox {
       fetch(_).map { pagin =>
         (
           pagin.entries,
-          pagin.cursor.some.filter(_ => pagin.has_more).map(_.some)
+          pagin.cursor.some.filter(_ => pagin.has_more).map(_.some),
         )
       }
     }

@@ -31,7 +31,7 @@ object Demo extends IOApp.Simple {
       port"9200",
       scheme"http",
       username = "admin",
-      password = "admin"
+      password = "admin",
     ).use(_.health)
       .flatMap(IO.println(_))
 
@@ -49,7 +49,7 @@ object ES {
     port: Port,
     scheme: Uri.Scheme,
     username: String,
-    password: String
+    password: String,
   ): Resource[F, ES[F]] =
     Resource
       .fromAutoCloseable {
@@ -57,18 +57,18 @@ object ES {
           new RestHighLevelClient(
             RestClient
               .builder(
-                new HttpHost(host.show, port.show.toInt, scheme.value)
+                new HttpHost(host.show, port.show.toInt, scheme.value),
               )
               .setHttpClientConfigCallback {
                 _.setDefaultCredentialsProvider {
                   new BasicCredentialsProvider().tap {
                     _.setCredentials(
                       AuthScope.ANY,
-                      new UsernamePasswordCredentials(username, password)
+                      new UsernamePasswordCredentials(username, password),
                     )
                   }
                 }
-              }
+              },
           )
         }
       }

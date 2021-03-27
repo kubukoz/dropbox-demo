@@ -61,7 +61,7 @@ object OCRAPI {
     private val client: Client[F] = Client[F] { request =>
       implicitly[Client[F]].run(
         request
-          .putHeaders(Header.Raw(CIString("apikey"), token))
+          .putHeaders(Header.Raw(CIString("apikey"), token)),
       )
     } /* todo retries? */
 
@@ -75,12 +75,12 @@ object OCRAPI {
               // Part.formData("language", "eng"),
               // Part.formData("isOverlayRequired", "true"),
               // Part.formData("filetype", "PNG"),
-              Part.fileData[F]("file", "example.png", data, `Content-Type`(MediaType.image.png))
-            )
+              Part.fileData[F]("file", "example.png", data, `Content-Type`(MediaType.image.png)),
+            ),
           )
           POST(uri"https://api.ocr.space/parse/image")
             .withEntity(
-              body
+              body,
             )
             //this is a workaround, I think the EntityEncoder instance of Multipart should be doing this
             .putHeaders(body.headers.headers)
