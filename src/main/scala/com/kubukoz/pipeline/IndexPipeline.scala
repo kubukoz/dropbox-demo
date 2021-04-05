@@ -20,7 +20,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object Demo extends IOApp.Simple {
 
-  val logger = Slf4jLogger.getLogger[IO]
+  implicit val logger = Slf4jLogger.getLogger[IO]
 
   def run: IO[Unit] = BlazeClientBuilder[IO](runtime.compute)
     .stream
@@ -53,12 +53,11 @@ object Demo extends IOApp.Simple {
             scheme"http",
             username = "admin",
             password = "admin",
-          )
-        }
-        .map { implicit es =>
-          implicit val indexer = Indexer.elasticSearch[IO]
-
-          IndexPipeline.instance[IO]
+          ).evalMap { implicit es =>
+            Indexer.elasticSearch[IO]
+          }.map { implicit indexer =>
+            IndexPipeline.instance[IO]
+          }
         }
     }
     .flatMap(_.run(Path("Camera Uploads/snapy")))
