@@ -2,7 +2,6 @@ package com.kubukoz.elasticsearch
 
 import java.lang
 
-import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.effect.kernel.Sync
@@ -32,7 +31,6 @@ import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.http4s.Uri
-import org.typelevel.log4cats.Logger
 
 import util.chaining._
 
@@ -51,10 +49,10 @@ object ES {
 
   final case class Config(host: Host, port: Port, scheme: Uri.Scheme, username: String, password: Secret[String])
 
-  def javaWrapped[F[_]: Async: Logger](config: Config): Resource[F, ES[F]] =
+  def javaWrapped[F[_]: Async](config: Config): Resource[F, ES[F]] =
     javaWrapped(config.host, config.port, config.scheme, config.username, config.password.value)
 
-  def javaWrapped[F[_]: Async: Logger](
+  def javaWrapped[F[_]: Async](
     host: Host,
     port: Port,
     scheme: Uri.Scheme,
@@ -133,7 +131,7 @@ object ES {
       }
     }
 
-  private def elasticRequest[F[_]: Async: Logger, A](unsafeStart: ActionListener[A] => Cancellable): F[A] = Async[F]
+  private def elasticRequest[F[_]: Async, A](unsafeStart: ActionListener[A] => Cancellable): F[A] = Async[F]
     .async[A] { cb =>
       Sync[F]
         .delay {
@@ -144,15 +142,6 @@ object ES {
 
           Sync[F].delay(cancelable.cancel()).some
         }
-    }
-    .guaranteeCase {
-      _.fold(
-        Logger[F].debug("Request canceled"),
-        Logger[F].error(_)("Request failed"),
-        _.flatMap { result =>
-          Logger[F].debug(s"Result: $result")
-        },
-      )
     }
 
 }

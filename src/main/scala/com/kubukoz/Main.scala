@@ -23,6 +23,8 @@ import org.http4s.circe._
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.dsl.Http4sDsl
 import org.http4s.implicits._
+import org.http4s.client
+import org.http4s.server
 import org.http4s.server.blaze.BlazeServerBuilder
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -78,6 +80,7 @@ object Application {
     Resource
       .eval(Async[F].executionContext)
       .flatMap(BlazeClientBuilder[F](_).resource)
+      .map(client.middleware.Logger[F](logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String))))
       .flatMap { implicit client =>
         Resource.eval(Queue.bounded[F, Path](capacity = 10)).flatMap { requestQueue =>
           Indexer.module[F](config.indexer).flatMap { implicit indexer =>
@@ -91,7 +94,14 @@ object Application {
               .flatMap {
                 BlazeServerBuilder[F](_)
                   .bindHttp(4000, "0.0.0.0")
-                  .withHttpApp(Routing.routes[F](requestQueue).orNotFound)
+                  .withHttpApp(
+                    server
+                      .middleware
+                      .Logger
+                      .httpApp(logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String)))(
+                        Routing.routes[F](requestQueue).orNotFound
+                      )
+                  )
                   .resource
               }
 

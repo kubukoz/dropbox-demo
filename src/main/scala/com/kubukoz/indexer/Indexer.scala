@@ -5,14 +5,13 @@ import cats.effect.MonadThrow
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.implicits._
+import ciris.ConfigValue
 import com.kubukoz.elasticsearch.ES
 import io.circe.Codec
 import io.circe.generic.semiauto._
 import io.circe.literal._
 import io.circe.syntax._
 import org.http4s.Uri
-import org.typelevel.log4cats.Logger
-import ciris.ConfigValue
 
 trait Indexer[F[_]] {
   def index(doc: FileDocument): F[Unit]
@@ -22,7 +21,7 @@ trait Indexer[F[_]] {
 object Indexer {
   def apply[F[_]](implicit F: Indexer[F]): Indexer[F] = F
 
-  def module[F[_]: Async: Logger](config: Config): Resource[F, Indexer[F]] =
+  def module[F[_]: Async](config: Config): Resource[F, Indexer[F]] =
     ES.javaWrapped[F](config.es)
       .evalMap { implicit es =>
         Indexer.elasticSearch[F]
