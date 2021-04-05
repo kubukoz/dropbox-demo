@@ -2,6 +2,7 @@ package com.kubukoz.imagesource
 
 import cats.effect.IO
 import cats.effect.IOApp
+import cats.effect.Temporal
 import cats.effect.MonadCancelThrow
 import cats.implicits._
 import com.kubukoz.dropbox
@@ -20,6 +21,9 @@ import org.http4s.MediaType
 import com.kubukoz.util.FileUtils
 import cats.effect.MonadThrow
 import com.kubukoz.dropbox.Metadata
+import ciris.ConfigValue
+import ciris.Secret
+import org.http4s.client.Client
 
 object Demo extends IOApp.Simple {
 
@@ -67,6 +71,20 @@ trait ImageSource[F[_]] {
 
 object ImageSource {
   def apply[F[_]](implicit F: ImageSource[F]): ImageSource[F] = F
+
+  def module[F[_]: Temporal: Client](config: Config): ImageSource[F] = {
+    implicit val dropbox = Dropbox.instance[F](config.dropboxToken.value)
+
+    ImageSource.dropboxInstance[F]
+  }
+
+  final case class Config(dropboxToken: Secret[String])
+
+  def config[F[_]]: ConfigValue[F, Config] = {
+    import ciris._
+
+    env("DROPBOX_TOKEN").secret.map(Config(_))
+  }
 
   def dropboxInstance[F[_]: Dropbox: MonadCancelThrow]: ImageSource[F] = rawPath =>
     Stream

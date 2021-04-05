@@ -24,6 +24,7 @@ import org.http4s.multipart.Multipart
 import org.http4s.multipart.Part
 import org.typelevel.ci.CIString
 import com.kubukoz.shared.FileMetadata
+import ciris.Secret
 
 object Demo extends IOApp.Simple {
 
@@ -37,7 +38,7 @@ object Demo extends IOApp.Simple {
           val p = Paths.get("example.png")
           val src = FileData(Files[IO].readAll(p, 4096), FileMetadata("example.png", MediaType.image.png))
 
-          val api = OCRAPI.instance[IO](System.getenv("OCRAPI_TOKEN"))
+          val api = OCRAPI.instance[IO](Secret(System.getenv("OCRAPI_TOKEN")))
 
           api.decode(src)
         }
@@ -58,12 +59,12 @@ trait OCRAPI[F[_]] {
 object OCRAPI {
   def apply[F[_]](implicit F: OCRAPI[F]): OCRAPI[F] = F
 
-  def instance[F[_]: Concurrent: Client](token: String): OCRAPI[F] = new OCRAPI[F] with Http4sDsl[F] with Http4sClientDsl[F] {
+  def instance[F[_]: Concurrent: Client](token: Secret[String]): OCRAPI[F] = new OCRAPI[F] with Http4sDsl[F] with Http4sClientDsl[F] {
 
     private val client: Client[F] = Client[F] { request =>
       implicitly[Client[F]].run(
         request
-          .putHeaders(Header.Raw(CIString("apikey"), token))
+          .putHeaders(Header.Raw(CIString("apikey"), token.value))
       )
     } /* todo retries? */
 

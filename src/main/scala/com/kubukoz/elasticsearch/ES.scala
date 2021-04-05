@@ -41,6 +41,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import util.chaining._
+import ciris.Secret
 
 object Demo extends IOApp.Simple {
   implicit val logger = Slf4jLogger.getLogger[IO]
@@ -77,6 +78,11 @@ trait ES[F[_]] {
 
 object ES {
   def apply[F[_]](implicit F: ES[F]): ES[F] = F
+
+  final case class Config(host: Host, port: Port, scheme: Uri.Scheme, username: String, password: Secret[String])
+
+  def javaWrapped[F[_]: Async: Logger](config: Config): Resource[F, ES[F]] =
+    javaWrapped(config.host, config.port, config.scheme, config.username, config.password.value)
 
   def javaWrapped[F[_]: Async: Logger](
     host: Host,
