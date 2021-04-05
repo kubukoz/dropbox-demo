@@ -1,23 +1,14 @@
 package com.kubukoz.pipeline
 
-import cats.effect.IO
-import cats.effect.IOApp
 import cats.effect.MonadThrow
 import cats.effect.kernel.Sync
 import cats.implicits._
 import com.kubukoz.imagesource.ImageSource
+import com.kubukoz.indexer.FileDocument
 import com.kubukoz.indexer.Indexer
 import com.kubukoz.ocr.OCR
 import com.kubukoz.shared.Path
 import fs2.Stream
-import org.http4s.client.blaze.BlazeClientBuilder
-import org.http4s.client.middleware.Logger
-import org.http4s.client.middleware.ResponseLogger
-import org.typelevel.log4cats.slf4j.Slf4jLogger
-import com.kubukoz.indexer.FileDocument
-import cats.effect.ApplicativeThrow
-import ciris.ConfigValue
-import scala.util.chaining._
 
 trait IndexPipeline[F[_]] {
   def run(path: Path): Stream[F, Either[Throwable, Unit]]
