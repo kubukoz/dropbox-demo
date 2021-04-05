@@ -17,6 +17,7 @@ import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.client.middleware.Logger
 import org.http4s.client.middleware.ResponseLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import com.kubukoz.indexer.FileDocument
 
 object Demo extends IOApp.Simple {
 
@@ -84,7 +85,9 @@ object IndexPipeline {
           .evalMap { data =>
             OCR[F]
               .decodeText(data)
-              .flatMap(Indexer[F].index(data.metadata, _))
+              .flatMap { decoded =>
+                Indexer[F].index(FileDocument(data.metadata.name, decoded.mkString(" "))).unlessA(decoded.isEmpty)
+              }
               .attempt
           }
 

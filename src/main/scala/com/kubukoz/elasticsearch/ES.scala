@@ -53,11 +53,12 @@ object Demo extends IOApp.Simple {
       username = "admin",
       password = "admin",
     ).use { es =>
-      es.deleteIndex("decoded") *>
+      es.indexExists("decoded").flatMap {
         es.createIndex(
           "decoded",
           json"""{"properties": {"content": {"type": "text"}}}""",
-        ) *>
+        ).unlessA(_)
+      } *>
         es.indexDocument("decoded", json"""{"content": "hello world this is a very nice document and everything yolo 2"}""") *>
         es.searchMatchFuzzy("decoded", "content", "world").delayBy(500.millis).iterateUntil(_.nonEmpty).timeout(2.seconds)
     }.flatMap(IO.println(_))
