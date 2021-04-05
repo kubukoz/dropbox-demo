@@ -2,18 +2,14 @@ package com.kubukoz.elasticsearch
 
 import java.lang
 
-import scala.concurrent.duration._
-
-import cats.effect.IO
-import cats.effect.IOApp
 import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.effect.kernel.Sync
 import cats.implicits._
+import ciris.Secret
 import com.comcast.ip4s._
 import io.circe.Json
-import io.circe.literal._
 import org.apache.http.HttpHost
 import org.apache.http.auth.AuthScope
 import org.apache.http.auth.UsernamePasswordCredentials
@@ -36,35 +32,9 @@ import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.http4s.Uri
-import org.http4s.implicits._
 import org.typelevel.log4cats.Logger
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import util.chaining._
-import ciris.Secret
-
-object Demo extends IOApp.Simple {
-  implicit val logger = Slf4jLogger.getLogger[IO]
-
-  def run: IO[Unit] =
-    ES.javaWrapped[IO](
-      host"localhost",
-      port"9200",
-      scheme"http",
-      username = "admin",
-      password = "admin",
-    ).use { es =>
-      es.indexExists("decoded").flatMap {
-        es.createIndex(
-          "decoded",
-          json"""{"properties": {"content": {"type": "text"}}}""",
-        ).unlessA(_)
-      } *>
-        es.indexDocument("decoded", json"""{"content": "hello world this is a very nice document and everything yolo 2"}""") *>
-        es.searchMatchFuzzy("decoded", "content", "world").delayBy(500.millis).iterateUntil(_.nonEmpty).timeout(2.seconds)
-    }.flatMap(IO.println(_))
-
-}
 
 // The ElasticSearch client
 trait ES[F[_]] {

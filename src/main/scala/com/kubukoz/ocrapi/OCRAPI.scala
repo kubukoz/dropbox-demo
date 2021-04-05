@@ -1,52 +1,20 @@
 package com.kubukoz.ocrapi
 
-import java.nio.file.Paths
-
 import cats.effect.Concurrent
-import cats.effect.IO
-import cats.effect.IOApp
 import cats.implicits._
+import ciris.Secret
 import com.kubukoz.shared.FileData
-import fs2.io.file.Files
 import io.circe.Json
 import org.http4s.Header
-import org.http4s.MediaType
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.client.Client
-import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.client.middleware.RequestLogger
-import org.http4s.client.middleware.ResponseLogger
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.`Content-Type`
 import org.http4s.implicits._
 import org.http4s.multipart.Multipart
 import org.http4s.multipart.Part
 import org.typelevel.ci.CIString
-import com.kubukoz.shared.FileMetadata
-import ciris.Secret
-
-object Demo extends IOApp.Simple {
-
-  def run: IO[Unit] =
-    BlazeClientBuilder[IO](runtime.compute)
-      .stream
-      .map(RequestLogger(logHeaders = true, logBody = false, logAction = Some(IO.println(_))))
-      .map(ResponseLogger(logHeaders = true, logBody = true, logAction = Some(IO.println(_))))
-      .evalMap { implicit client =>
-        IO.defer {
-          val p = Paths.get("example.png")
-          val src = FileData(Files[IO].readAll(p, 4096), FileMetadata("example.png", MediaType.image.png))
-
-          val api = OCRAPI.instance[IO](Secret(System.getenv("OCRAPI_TOKEN")))
-
-          api.decode(src)
-        }
-      }
-      .compile
-      .drain
-
-}
 
 trait OCRAPI[F[_]] {
   //todo: this is gonna be trouble, for >10MB they'd rather take a file URL
