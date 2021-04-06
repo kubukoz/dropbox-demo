@@ -17,7 +17,6 @@ import com.kubukoz.indexer.Indexer
 import com.kubukoz.ocr.OCR
 import com.kubukoz.pipeline.IndexPipeline
 import com.kubukoz.shared.Path
-import fs2.Pull
 import io.circe.Codec
 import io.circe.generic.semiauto._
 import org.http4s.HttpRoutes
