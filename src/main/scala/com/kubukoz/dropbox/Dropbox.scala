@@ -32,7 +32,7 @@ import util.chaining._
 trait Dropbox[F[_]] {
   def listFolder(path: Path, recursive: Boolean): F[Paginable[Metadata]]
   def listFolderContinue(cursor: String): F[Paginable[Metadata]]
-  def download(file: Metadata.FileMetadata): Resource[F, FileDownload[F]]
+  def download(filePath: Path): Resource[F, FileDownload[F]]
 }
 
 object Dropbox {
@@ -89,14 +89,14 @@ object Dropbox {
           )
       )(decodeError)
 
-    def download(file: Metadata.FileMetadata): Resource[F, FileDownload[F]] = {
+    def download(filePath: dropbox.Path): Resource[F, FileDownload[F]] = {
       val runRequest = client
         .run {
           POST(uri"https://content.dropboxapi.com/2/files/download")
             .putHeaders(
               Header.Raw(
                 name = CIString("Dropbox-API-Arg"),
-                value = json"""{"path": ${file.path_lower} }""".noSpaces,
+                value = json"""{"path": $filePath }""".noSpaces,
               )
             )
         }

@@ -67,14 +67,14 @@ object Paginable {
 sealed trait Metadata extends Product with Serializable {
   // uh I don't like this but ok
   def name: String
-  def path_lower: String
-  def path_display: String
+  def path_lower: Path
+  def path_display: Path
   def id: String
 }
 
 object Metadata {
-  final case class FolderMetadata(name: String, path_lower: String, path_display: String, id: String) extends Metadata
-  final case class FileMetadata(name: String, path_lower: String, path_display: String, id: String) extends Metadata
+  final case class FolderMetadata(name: String, path_lower: Path, path_display: Path, id: String) extends Metadata
+  final case class FileMetadata(name: String, path_lower: Path, path_display: Path, id: String) extends Metadata
 
   object FileMetadata {
     implicit val codec: Codec.AsObject[FileMetadata] = deriveCodec

@@ -72,8 +72,11 @@ object Indexer {
 
 }
 
+//todo: fileName because currently indexed data looks like this
 final case class FileDocument(fileName: String, content: String)
 
 object FileDocument {
+  //todo: probably don't want to reuse the codec between this and the body huh
+  //fileName here might be a string, but it'll be an Uri to the viewable version in the endgame
   implicit val codec: Codec[FileDocument] = deriveCodec
 }

@@ -1,6 +1,6 @@
 package com.kubukoz.pipeline
 
-import cats.effect.MonadThrow
+import cats.effect.kernel.Concurrent
 import cats.effect.kernel.Sync
 import cats.implicits._
 import com.kubukoz.imagesource.ImageSource
@@ -17,17 +17,17 @@ trait IndexPipeline[F[_]] {
 object IndexPipeline {
   def apply[F[_]](implicit F: IndexPipeline[F]): IndexPipeline[F] = F
 
-  def instance[F[_]: ImageSource: OCR: Indexer: MonadThrow]: IndexPipeline[F] =
+  def instance[F[_]: ImageSource: OCR: Indexer: Concurrent]: IndexPipeline[F] =
     new IndexPipeline[F] {
 
       def run(path: Path): Stream[F, Either[Throwable, Unit]] =
         ImageSource[F]
           .streamFolder(path)
-          .evalMap { data =>
+          .parEvalMapUnordered(maxConcurrent = 10) { data =>
             OCR[F]
               .decodeText(data)
               .flatMap { decoded =>
-                Indexer[F].index(FileDocument(data.metadata.name, decoded.mkString(" "))).unlessA(decoded.isEmpty)
+                Indexer[F].index(FileDocument(data.metadata.path, decoded.mkString(" "))).unlessA(decoded.isEmpty)
               }
               .attempt
           }

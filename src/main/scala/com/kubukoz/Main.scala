@@ -3,9 +3,10 @@ package com.kubukoz
 import cats.ApplicativeThrow
 import cats.effect.IO
 import cats.effect.IOApp
-import cats.effect.MonadThrow
+import cats.effect.MonadCancelThrow
 import cats.effect.implicits._
 import cats.effect.kernel.Async
+import cats.effect.kernel.MonadCancel
 import cats.effect.kernel.Resource
 import cats.effect.std.Queue
 import cats.effect.std.QueueSink
@@ -16,14 +17,16 @@ import com.kubukoz.indexer.Indexer
 import com.kubukoz.ocr.OCR
 import com.kubukoz.pipeline.IndexPipeline
 import com.kubukoz.shared.Path
+import fs2.Pull
 import io.circe.Codec
 import io.circe.generic.semiauto._
 import org.http4s.HttpRoutes
 import org.http4s.circe._
+import org.http4s.client
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.dsl.Http4sDsl
+import org.http4s.headers.`Content-Type`
 import org.http4s.implicits._
-import org.http4s.client
 import org.http4s.server
 import org.http4s.server.blaze.BlazeServerBuilder
 import org.typelevel.log4cats.SelfAwareStructuredLogger
@@ -43,7 +46,7 @@ object SearchRequest {
 
 object Routing {
 
-  def routes[F[_]: MonadThrow: JsonDecoder: Indexer](
+  def routes[F[_]: MonadCancelThrow: JsonDecoder: Indexer: ImageSource](
     requestQueue: QueueSink[F, Path]
   ): HttpRoutes[F] = {
     object dsl extends Http4sDsl[F]
@@ -59,6 +62,29 @@ object Routing {
       case req @ POST -> Root / "search" =>
         req.asJsonDecode[SearchRequest].flatMap { body =>
           Ok(Indexer[F].search(body.query).map(_.asJson))
+        }
+
+      case GET -> "view" /: rest =>
+        println(rest.segments.map(_.decoded()).mkString("/"))
+
+        val getMetadataAndStream =
+          ImageSource[F].download(shared.Path(rest.segments.map(_.decoded()).mkString("/")))
+
+        //todo might be prone to race conditions
+        //todo caching etc. would be nice
+        //also content length
+        MonadCancel[F].uncancelable { poll =>
+          // We need the value of this resource later
+          // so we cancelably-allocate it, then hope for the best (that any cancelations on the request will shutdown this resource).
+          poll(getMetadataAndStream.allocated)
+            .map { case (fd, cancel) =>
+              fd.metadata -> Resource.pure(fd).onFinalize(cancel).onFinalizeCase { ec => println(ec); ().pure[F] }
+            }
+            .flatMap { case (meta, file) =>
+              // probably don't need to pass poll anywhere here, since it's already out of scope...
+              Ok(fs2.Stream.resource(file).flatMap(_.content)).map(_.withContentType(`Content-Type`(meta.mediaType)))
+            }
+
         }
     }
   }

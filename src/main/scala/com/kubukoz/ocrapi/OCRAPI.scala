@@ -43,7 +43,7 @@ object OCRAPI {
           val body = Multipart[F](
             Vector(
               Part.formData("language", "pol"),
-              Part.fileData[F]("file", file.metadata.name, file.content, `Content-Type`(file.metadata.mediaType)),
+              Part.fileData[F]("file", file.metadata.path, file.content, `Content-Type`(file.metadata.mediaType)),
             )
           )
 

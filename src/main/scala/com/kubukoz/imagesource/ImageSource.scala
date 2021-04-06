@@ -19,9 +19,11 @@ import org.http4s.MediaType
 import org.http4s.client.Client
 
 import util.chaining._
+import cats.effect.kernel.Resource
 
 trait ImageSource[F[_]] {
   def streamFolder(rawPath: Path): Stream[F, FileData[F]]
+  def download(rawPath: Path): Resource[F, FileData[F]]
 }
 
 object ImageSource {
@@ -41,20 +43,29 @@ object ImageSource {
     env("DROPBOX_TOKEN").secret.map(Config(_))
   }
 
-  def dropboxInstance[F[_]: Dropbox: MonadCancelThrow]: ImageSource[F] = rawPath =>
-    Stream
-      .eval(dropbox.Path.parse(rawPath.value).leftMap(new Throwable(_)).liftTo[F])
-      .flatMap { path =>
-        Dropbox
-          .paginate {
-            case None         => Dropbox[F].listFolder(path, recursive = true)
-            case Some(cursor) => Dropbox[F].listFolderContinue(cursor)
-          }
-      }
-      .collect { case f: Metadata.FileMetadata => f }
-      .flatMap(Dropbox[F].download(_).pipe(Stream.resource(_)))
-      .evalMap(toFileData[F])
-      .filter(_.metadata.mediaType.isImage)
+  def dropboxInstance[F[_]: Dropbox: MonadCancelThrow]: ImageSource[F] =
+    new ImageSource[F] {
+
+      private def parsePath(rawPath: Path) = dropbox.Path.parse(rawPath.value).leftMap(new Throwable(_)).liftTo[F]
+
+      def streamFolder(rawPath: Path): Stream[F, FileData[F]] = Stream
+        .eval(parsePath(rawPath))
+        .flatMap { path =>
+          Dropbox
+            .paginate {
+              case None         => Dropbox[F].listFolder(path, recursive = true)
+              case Some(cursor) => Dropbox[F].listFolderContinue(cursor)
+            }
+        }
+        .collect { case f: Metadata.FileMetadata => f }
+        .flatMap(meta => Dropbox[F].download(meta.path_lower).pipe(Stream.resource(_)))
+        .evalMap(toFileData[F])
+        .filter(_.metadata.mediaType.isImage)
+
+      def download(rawPath: Path): Resource[F, FileData[F]] =
+        Resource.eval(parsePath(rawPath)).flatMap(Dropbox[F].download(_)).evalMap(toFileData[F])
+
+    }
 
   def toFileData[F[_]: MonadThrow](fd: FileDownload[F]): F[FileData[F]] =
     FileUtils
@@ -64,7 +75,7 @@ object ImageSource {
         FileData(
           content = fd.data,
           metadata = FileMetadata(
-            name = fd.metadata.name,
+            path = fd.metadata.path_lower.render,
             mediaType = mediaType,
           ),
         )
