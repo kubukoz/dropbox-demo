@@ -78,7 +78,7 @@ object Routing {
           // so we cancelably-allocate it, then hope for the best (that any cancelations on the request will shutdown this resource).
           poll(getMetadataAndStream.allocated)
             .map { case (fd, cancel) =>
-              fd.metadata -> Resource.pure(fd).onFinalize(cancel).onFinalizeCase { ec => println(ec); ().pure[F] }
+              fd.metadata -> Resource.pure(fd).onFinalize(cancel)
             }
             .flatMap { case (meta, file) =>
               // probably don't need to pass poll anywhere here, since it's already out of scope...
