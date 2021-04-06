@@ -41,7 +41,14 @@ object Path {
 
   def parse(path: String): Either[String, Path] = path match {
     case ""   => Root.asRight
-    case path => path.split("\\/").toList.toNel.toRight("Path must start with a slash, but didn't contain any").map(Relative(_))
+    case path =>
+      path
+        .split("\\/")
+        .filterNot(_.trim.isEmpty)
+        .toList
+        .toNel
+        .toRight("Path must start with a slash, but didn't contain any")
+        .map(Relative(_))
   }
 
   implicit val codec: Codec[Path] = Codec.from(
