@@ -65,8 +65,6 @@ object Routing {
         }
 
       case GET -> "view" /: rest =>
-        println(rest.segments.map(_.decoded()).mkString("/"))
-
         val getMetadataAndStream =
           ImageSource[F].download(shared.Path(rest.segments.map(_.decoded()).mkString("/")))
 
