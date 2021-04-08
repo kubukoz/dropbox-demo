@@ -1,12 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import "./index.css";
-import App from "./App";
 import reportWebVitals from "./reportWebVitals";
+
+const MyComp = () => <div></div>;
 
 ReactDOM.render(
   <React.StrictMode>
-    <App />
+    <MyComp />
   </React.StrictMode>,
   document.getElementById("root")
 );
