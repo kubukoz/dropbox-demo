@@ -1,42 +1,8 @@
-import { FC, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { SearchBox } from "./SearchBox";
+import { SearchResult } from "./SearchResult";
 
-type SearchBoxProps = {
-  placeholder: string;
-  initial: string;
-  onChange: (newValue: string) => void;
-};
-
-const SearchBox: FC<SearchBoxProps> = ({ placeholder, onChange, initial }) => {
-  const [value, setValue] = useState(initial);
-
-  return (
-    <div style={{ paddingBottom: "20px" }}>
-      <input
-        type="text"
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => {
-          setValue(e.target.value);
-          onChange(e.target.value);
-        }}
-        style={{ display: "block" }}
-      ></input>
-    </div>
-  );
-};
-
-type SearchResultProps = { imageUrl: string; thumbnailUrl: string };
-const SearchResult: FC<SearchResultProps> = ({ imageUrl, thumbnailUrl }) => {
-  return (
-    <>
-      <a href={imageUrl} target="_blank" rel="noreferrer">
-        <img src={thumbnailUrl} style={{ height: "200px" }}></img>
-      </a>
-    </>
-  );
-};
-
-const App = () => {
+export const App = () => {
   const [query, setQuery] = useState("doggos");
 
   const [searching, setSearching] = useState(false);
@@ -78,5 +44,3 @@ const App = () => {
     </>
   );
 };
-
-export default App;
