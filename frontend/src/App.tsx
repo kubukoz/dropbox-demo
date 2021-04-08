@@ -1,3 +1,4 @@
+import axios from "axios";
 import { useEffect, useState } from "react";
 import { SearchBox } from "./SearchBox";
 import { SearchResult } from "./SearchResult";
@@ -7,6 +8,13 @@ export const App = () => {
 
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<readonly { url: string }[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const response = await axios.get("https://httpbin.org/get");
+      console.log(response);
+    })();
+  }, []);
 
   useEffect(() => {
     setSearching(true);
