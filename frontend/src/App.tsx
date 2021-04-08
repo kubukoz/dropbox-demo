@@ -25,13 +25,12 @@ const SearchBox: FC<SearchBoxProps> = ({ placeholder, onChange, initial }) => {
   );
 };
 
-type SearchResultProps = { offset: number };
-const SearchResult: FC<SearchResultProps> = ({ offset }) => {
-  const url = "https://placedog.net/" + (200 + offset * 10);
+type SearchResultProps = { imageUrl: string; thumbnailUrl: string };
+const SearchResult: FC<SearchResultProps> = ({ imageUrl, thumbnailUrl }) => {
   return (
     <>
-      <a href={url} target="_blank" rel="noreferrer">
-        <img src={url} style={{ height: "200px" }}></img>
+      <a href={imageUrl} target="_blank" rel="noreferrer">
+        <img src={thumbnailUrl} style={{ height: "200px" }}></img>
       </a>
     </>
   );
@@ -40,9 +39,11 @@ const SearchResult: FC<SearchResultProps> = ({ offset }) => {
 const App = () => {
   const [query, setQuery] = useState("doggos");
 
-  const results = query
-    .split("")
-    .map((_, i) => <SearchResult offset={i} key={i} />);
+  const results = query.split("").map((_, i) => {
+    const url = "https://placedog.net/" + (200 + i * 10);
+
+    return <SearchResult imageUrl={url} thumbnailUrl={url} key={i} />;
+  });
 
   return (
     <>
