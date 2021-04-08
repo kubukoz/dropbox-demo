@@ -27,12 +27,12 @@ const SearchBox: FC<SearchBoxProps> = ({ placeholder, onChange, initial }) => {
 
 type SearchResultProps = { offset: number };
 const SearchResult: FC<SearchResultProps> = ({ offset }) => {
+  const url = "https://placedog.net/" + (200 + offset * 10);
   return (
     <>
-      <img
-        src={"https://placedog.net/" + (200 + offset * 10)}
-        style={{ height: "200px" }}
-      ></img>
+      <a href={url} target="_blank" rel="noreferrer">
+        <img src={url} style={{ height: "200px" }}></img>
+      </a>
     </>
   );
 };
