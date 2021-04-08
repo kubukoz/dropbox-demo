@@ -1,4 +1,4 @@
-import { FC, useState } from "react";
+import { FC, useEffect, useState } from "react";
 
 type SearchBoxProps = {
   placeholder: string;
@@ -39,11 +39,31 @@ const SearchResult: FC<SearchResultProps> = ({ imageUrl, thumbnailUrl }) => {
 const App = () => {
   const [query, setQuery] = useState("doggos");
 
-  const results = query.split("").map((_, i) => {
-    const url = "https://placedog.net/" + (200 + i * 10);
+  const [searching, setSearching] = useState(false);
+  const [results, setResults] = useState<readonly { url: string }[]>([]);
 
+  useEffect(() => {
+    setSearching(true);
+    const tim = setTimeout(() => {
+      setResults(
+        query.split("").map((_, i) => ({
+          url: "https://placedog.net/" + (200 + i * 10),
+        }))
+      );
+      setSearching(false);
+    }, 500);
+
+    () => {
+      clearTimeout(tim);
+      setSearching(false);
+    };
+  }, [query]);
+
+  const resultViews = results.map(({ url }, i) => {
     return <SearchResult imageUrl={url} thumbnailUrl={url} key={i} />;
   });
+
+  const ellipsis = searching ? "searching..." : undefined;
 
   return (
     <>
@@ -53,7 +73,8 @@ const App = () => {
         initial={query}
         onChange={(newQuery) => setQuery(newQuery)}
       />
-      {results}
+      {resultViews}
+      {ellipsis}
     </>
   );
 };
