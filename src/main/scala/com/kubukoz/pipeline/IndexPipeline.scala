@@ -25,7 +25,7 @@ object IndexPipeline {
           .streamFolder(path)
           .parEvalMapUnordered(maxConcurrent = 10) { data =>
             OCR[F]
-              .decodeText(data)
+              .decodeText(data.content)
               .flatMap { decoded =>
                 Indexer[F].index(FileDocument(data.metadata.path, decoded.mkString(" "))).unlessA(decoded.isEmpty)
               }
