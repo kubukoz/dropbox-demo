@@ -1,9 +1,12 @@
 package com.kubukoz.tesseract
 
-import cats.effect.std
+import cats.Applicative
+import cats.effect.Concurrent
+import cats.effect.ExitCode
+import cats.effect.implicits._
 import cats.implicits._
 import com.kubukoz.process.ProcessRunner
-import fs2.Pipe
+import org.typelevel.log4cats.Logger
 
 trait Tesseract[F[_]] {
   def decode(input: fs2.Stream[F, Byte]): F[String]
@@ -12,22 +15,27 @@ trait Tesseract[F[_]] {
 object Tesseract {
   def apply[F[_]](implicit F: Tesseract[F]): Tesseract[F] = F
 
-  def instance[F[_]: ProcessRunner: std.Console](implicit SC: fs2.Compiler[F, F]): Tesseract[F] = new Tesseract[F] {
-
-    private val errorLog: Pipe[F, Byte, Nothing] =
-      _.through(fs2.text.utf8Decode[F])
-        .through(fs2.text.lines[F])
-        .evalMap(std.Console[F].errorln(_))
-        .drain
+  def instance[F[_]: ProcessRunner: Logger: Concurrent](implicit SC: fs2.Compiler[F, F]): Tesseract[F] = new Tesseract[F] {
 
     def decode(input: fs2.Stream[F, Byte]): F[String] =
-      input
-        .through(
-          ProcessRunner[F].run(List("tesseract", "stdin", "stdout", "-l", "pol+eng"))(errorLog)
-        )
-        .through(fs2.text.utf8Decode[F])
-        .compile
-        .string
+      ProcessRunner[F]
+        .run(List("tesseract", "stdin", "stdout", "-l", "pol"))
+        .use { proc =>
+          val readOutput = proc.outputUtf8.compile.string
+
+          val logErrors = (
+            proc.errorOutputUtf8.compile.string,
+            proc.exitCode,
+          ).tupled
+            .flatMap {
+              case (_, ExitCode.Success) => Applicative[F].unit
+              case (errorLogs, code)     => Logger[F].error(s"Tesseract failed with exit code $code: $errorLogs")
+            }
+            // Safe, because the output stream interrupts whenever the program exits at all
+            .uncancelable
+
+          proc.setInput(input) *> readOutput <& logErrors
+        }
 
   }
 

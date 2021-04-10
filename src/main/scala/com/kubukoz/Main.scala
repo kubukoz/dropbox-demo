@@ -28,9 +28,9 @@ import org.http4s.headers.`Content-Type`
 import org.http4s.implicits._
 import org.http4s.server
 import org.http4s.server.blaze.BlazeServerBuilder
+import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import cats.effect.std
 
 final case class IndexRequest(path: String)
 
@@ -97,7 +97,7 @@ object Application {
     ImageSource.config[F],
   ).parMapN(Config)
 
-  def run[F[_]: Async: std.Console](config: Config): F[Nothing] = {
+  def run[F[_]: Async](config: Config): F[Nothing] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 
     Resource
@@ -132,6 +132,7 @@ object Application {
               .Stream
               .fromQueueUnterminated(requestQueue)
               .flatMap(pipeline.run)
+              .evalMap(_.leftTraverse(Logger[F].error(_)("Processing file failed")))
               .compile
               .drain
 
