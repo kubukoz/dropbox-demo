@@ -84,6 +84,9 @@ object Routing {
 
 }
 
+// todo! checking if a file is already decoded and indexed, before trying to decode.
+// also, probably a UI form to index a path would be nice, and maybe an endpoint to see the progress (which path, how many files indexed, maybe running time), checking if a path was already indexed
+// lots of possibilities
 object Application {
   final case class Config(indexer: Indexer.Config, imageSource: ImageSource.Config)
 
