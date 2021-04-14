@@ -31,17 +31,12 @@ import org.http4s.server.blaze.BlazeServerBuilder
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import org.http4s.server.middleware.CORS
 
 final case class IndexRequest(path: String)
 
 object IndexRequest {
   implicit val codec: Codec.AsObject[IndexRequest] = deriveCodec
-}
-
-final case class SearchRequest(query: String)
-
-object SearchRequest {
-  implicit val codec: Codec.AsObject[SearchRequest] = deriveCodec
 }
 
 object Routing {
@@ -53,16 +48,16 @@ object Routing {
     import dsl._
     import io.circe.syntax._
 
+    object SearchQuery extends QueryParamDecoderMatcher[String]("query")
+
     HttpRoutes.of {
       case req @ POST -> Root / "index" =>
         req.asJsonDecode[IndexRequest].flatMap { body =>
           requestQueue.offer(shared.Path(body.path))
         } *> Accepted()
 
-      case req @ POST -> Root / "search" =>
-        req.asJsonDecode[SearchRequest].flatMap { body =>
-          Ok(Indexer[F].search(body.query).map(_.asJson))
-        }
+      case GET -> Root / "search" :? SearchQuery(query) =>
+        Ok(Indexer[F].search(query).map(_.asJson))
 
       case GET -> "view" /: rest =>
         val getMetadataAndStream =
@@ -118,12 +113,10 @@ object Application {
                 BlazeServerBuilder[F](_)
                   .bindHttp(4000, "0.0.0.0")
                   .withHttpApp(
-                    server
-                      .middleware
-                      .Logger
-                      .httpApp(logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String)))(
-                        Routing.routes[F](requestQueue).orNotFound
-                      )
+                    (server.middleware.Logger.httpRoutes(logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String))) _)
+                      .compose(CORS.httpRoutes[F] _)
+                      .apply(Routing.routes[F](requestQueue))
+                      .orNotFound
                   )
                   .resource
               }
