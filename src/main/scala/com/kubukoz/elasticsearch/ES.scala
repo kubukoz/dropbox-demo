@@ -1,12 +1,12 @@
 package com.kubukoz.elasticsearch
 
-import java.lang
-
-import cats.effect.kernel.Async
+import cats.ApplicativeThrow
 import cats.effect.implicits._
+import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.effect.kernel.Sync
 import cats.implicits._
+import ciris.ConfigValue
 import ciris.Secret
 import com.comcast.ip4s._
 import io.circe.Json
@@ -32,9 +32,11 @@ import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.http4s.Uri
+import org.typelevel.log4cats.Logger
+
+import java.lang
 
 import util.chaining._
-import org.typelevel.log4cats.Logger
 
 // The ElasticSearch client
 trait ES[F[_]] {
@@ -50,6 +52,17 @@ object ES {
   def apply[F[_]](implicit F: ES[F]): ES[F] = F
 
   final case class Config(host: Host, port: Port, scheme: Uri.Scheme, username: String, password: Secret[String])
+
+  def config[F[_]: ApplicativeThrow]: ConfigValue[F, Config] = {
+    import ciris._
+    (
+      env("ELASTICSEARCH_HOST").evalMap(h => Host.fromString(h).liftTo[F](new Throwable(s"Invalid host: $h"))).default(host"localhost"),
+      env("ELASTICSEARCH_PORT").as[Int].evalMap(p => Port.fromInt(p).liftTo[F](new Throwable(s"Invalid port: $p"))).default(port"9200"),
+      default(Uri.Scheme.http),
+      env("ELASTICSEARCH_USERNAME").default("admin"),
+      env("ELASTICSEARCH_PASSWORD").default("admin").secret,
+    ).parMapN(Config.apply)
+  }
 
   def javaWrapped[F[_]: Async: Logger](config: Config): Resource[F, ES[F]] =
     makeClient(config)

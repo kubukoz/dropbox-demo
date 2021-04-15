@@ -11,7 +11,6 @@ import io.circe.Codec
 import io.circe.generic.semiauto._
 import io.circe.literal._
 import io.circe.syntax._
-import org.http4s.Uri
 import org.typelevel.log4cats.Logger
 
 trait Indexer[F[_]] {
@@ -30,21 +29,8 @@ object Indexer {
 
   final case class Config(es: ES.Config)
 
-  def config[F[_]: ApplicativeThrow]: ConfigValue[F, Config] = {
-    import ciris._
-
-    import com.comcast.ip4s._
-
-    val elastic: ConfigValue[F, ES.Config] = (
-      env("ELASTICSEARCH_HOST").evalMap(h => Host.fromString(h).liftTo[F](new Throwable(s"Invalid host: $h"))).default(host"localhost"),
-      env("ELASTICSEARCH_PORT").as[Int].evalMap(p => Port.fromInt(p).liftTo[F](new Throwable(s"Invalid port: $p"))).default(port"9200"),
-      default(Uri.Scheme.http),
-      env("ELASTICSEARCH_USERNAME").default("admin"),
-      env("ELASTICSEARCH_PASSWORD").default("admin").secret,
-    ).parMapN(ES.Config.apply)
-
-    elastic.map(Config)
-  }
+  def config[F[_]: ApplicativeThrow]: ConfigValue[F, Config] =
+    ES.config[F].map(Config)
 
   def elasticSearch[F[_]: ES: MonadThrow: Logger]: F[Indexer[F]] = {
     val indexName = "decoded"
