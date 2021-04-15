@@ -7,4 +7,6 @@ services:
     ports:
       - "9200:9200"
       - "9600:9600"
+    volumes:
+      - "./docker/elastic-data:/usr/share/elasticsearch/data"
 version: '3'

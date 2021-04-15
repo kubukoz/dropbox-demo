@@ -16,6 +16,7 @@ let elastic =
               , { mapKey = "discovery.type", mapValue = "single-node" }
               ]
           )
+      , volumes = Some [ "./docker/elastic-data:/usr/share/elasticsearch/data" ]
       }
 
 in  Compose.Config::{ services = Some (toMap { elastic }) }
