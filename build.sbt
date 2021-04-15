@@ -14,7 +14,7 @@ val compilerPlugins = List(
 lazy val root = (project in file(".")).settings(
   name := "dropbox-demo",
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-effect" % "3.0.0",
+    "org.typelevel" %% "cats-effect" % "3.0.2",
     "co.fs2" %% "fs2-core" % "3.0.1",
     "org.http4s" %% "http4s-blaze-client" % "1.0.0-M21",
     "org.http4s" %% "http4s-blaze-server" % "1.0.0-M21",

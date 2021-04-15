@@ -3,6 +3,7 @@ package com.kubukoz.elasticsearch
 import java.lang
 
 import cats.effect.kernel.Async
+import cats.effect.implicits._
 import cats.effect.kernel.Resource
 import cats.effect.kernel.Sync
 import cats.implicits._
@@ -33,6 +34,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.http4s.Uri
 
 import util.chaining._
+import org.typelevel.log4cats.Logger
 
 // The ElasticSearch client
 trait ES[F[_]] {
@@ -49,17 +51,8 @@ object ES {
 
   final case class Config(host: Host, port: Port, scheme: Uri.Scheme, username: String, password: Secret[String])
 
-  def javaWrapped[F[_]: Async](config: Config): Resource[F, ES[F]] =
-    javaWrapped(config.host, config.port, config.scheme, config.username, config.password.value)
-
-  def javaWrapped[F[_]: Async](
-    host: Host,
-    port: Port,
-    scheme: Uri.Scheme,
-    username: String,
-    password: String,
-  ): Resource[F, ES[F]] =
-    makeClient(host, port, scheme, username, password)
+  def javaWrapped[F[_]: Async: Logger](config: Config): Resource[F, ES[F]] =
+    makeClient(config)
       .map { client =>
         new ES[F] {
           def indexExists(name: String): F[Boolean] =
@@ -103,33 +96,31 @@ object ES {
         }
       }
 
-  private def makeClient[F[_]: Sync](
-    host: Host,
-    port: Port,
-    scheme: Uri.Scheme,
-    username: String,
-    password: String,
-  ): Resource[F, RestHighLevelClient] = Resource
-    .fromAutoCloseable {
-      Sync[F].delay {
-        new RestHighLevelClient(
-          RestClient
-            .builder(
-              new HttpHost(host.show, port.show.toInt, scheme.value)
-            )
-            .setHttpClientConfigCallback {
-              _.setDefaultCredentialsProvider {
-                new BasicCredentialsProvider().tap {
-                  _.setCredentials(
-                    AuthScope.ANY,
-                    new UsernamePasswordCredentials(username, password),
-                  )
+  private def makeClient[F[_]: Sync: Logger](
+    config: Config
+  ): Resource[F, RestHighLevelClient] =
+    Logger[F].info(s"Starting ElasticSearch client with config: $config").toResource *>
+      Resource
+        .fromAutoCloseable {
+          Sync[F].delay {
+            new RestHighLevelClient(
+              RestClient
+                .builder(
+                  new HttpHost(config.host.show, config.port.value, config.scheme.value)
+                )
+                .setHttpClientConfigCallback {
+                  _.setDefaultCredentialsProvider {
+                    new BasicCredentialsProvider().tap {
+                      _.setCredentials(
+                        AuthScope.ANY,
+                        new UsernamePasswordCredentials(config.username, config.password.value),
+                      )
+                    }
+                  }
                 }
-              }
-            }
-        )
-      }
-    }
+            )
+          }
+        }
 
   private def elasticRequest[F[_]: Async, A](unsafeStart: ActionListener[A] => Cancellable): F[A] = Async[F]
     .async[A] { cb =>

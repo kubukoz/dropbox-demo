@@ -4,7 +4,7 @@ package com.kubukoz.dropbox
 import scala.concurrent.duration._
 
 import cats.Functor
-import cats.effect.MonadThrow
+import cats.MonadThrow
 import cats.effect.Temporal
 import cats.effect.kernel.Resource
 import cats.implicits._

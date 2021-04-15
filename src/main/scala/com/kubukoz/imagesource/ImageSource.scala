@@ -1,7 +1,7 @@
 package com.kubukoz.imagesource
 
 import cats.effect.MonadCancelThrow
-import cats.effect.MonadThrow
+import cats.MonadThrow
 import cats.effect.Temporal
 import cats.implicits._
 import ciris.ConfigValue

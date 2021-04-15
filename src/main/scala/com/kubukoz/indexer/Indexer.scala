@@ -1,7 +1,7 @@
 package com.kubukoz.indexer
 
-import cats.effect.ApplicativeThrow
-import cats.effect.MonadThrow
+import cats.ApplicativeThrow
+import cats.MonadThrow
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.implicits._
@@ -12,6 +12,7 @@ import io.circe.generic.semiauto._
 import io.circe.literal._
 import io.circe.syntax._
 import org.http4s.Uri
+import org.typelevel.log4cats.Logger
 
 trait Indexer[F[_]] {
   def index(doc: FileDocument): F[Unit]
@@ -21,7 +22,7 @@ trait Indexer[F[_]] {
 object Indexer {
   def apply[F[_]](implicit F: Indexer[F]): Indexer[F] = F
 
-  def module[F[_]: Async](config: Config): Resource[F, Indexer[F]] =
+  def module[F[_]: Async: Logger](config: Config): Resource[F, Indexer[F]] =
     ES.javaWrapped[F](config.es)
       .evalMap { implicit es =>
         Indexer.elasticSearch[F]
@@ -45,7 +46,7 @@ object Indexer {
     elastic.map(Config)
   }
 
-  def elasticSearch[F[_]: ES: MonadThrow]: F[Indexer[F]] = {
+  def elasticSearch[F[_]: ES: MonadThrow: Logger]: F[Indexer[F]] = {
     val indexName = "decoded"
     val fieldName = "content"
 
@@ -59,15 +60,22 @@ object Indexer {
 
     ES[F]
       .indexExists(indexName)
-      .flatMap(
+      .flatTap {
+        case true  => Logger[F].debug("Index exists, all good")
+        case false => Logger[F].info(s"Index doesn't exist, creating: $indexName")
+      }
+      .flatMap {
         ES[F]
           .createIndex(
             indexName,
             json"""{"properties": {$fieldName: {"type": "text"}}}""",
           )
           .unlessA(_)
-      )
+      }
       .as(instance)
+      .onError { case e =>
+        Logger[F].error(e)("Couldn't check/create index, ensure ElasticSearch is running")
+      }
   }
 
 }
