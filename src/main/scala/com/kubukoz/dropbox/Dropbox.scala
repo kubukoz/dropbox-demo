@@ -63,22 +63,22 @@ object Dropbox {
           )
         )
       )
-      //todo: toMessageSynax in http4s-circe xD
       private val decodeError: Response[F] => F[Throwable] = _.asJsonDecode[ErrorResponse].widen
 
       private val listFolderUri = uri"https://api.dropboxapi.com/2/files/list_folder"
 
       def listFolder(path: dropbox.Path, recursive: Boolean): F[Paginable[Metadata]] =
-        client.expectOr(
-          POST(listFolderUri)
-            .withEntity(
-              json"""{
+        Logger[F].debug(s"Listing folder at path $path, recursively? $recursive") *>
+          client.expectOr(
+            POST(listFolderUri)
+              .withEntity(
+                json"""{
               "path": $path,
               "recursive": $recursive,
               "limit": 100
             }"""
-            )
-        )(decodeError)
+              )
+          )(decodeError)
 
       def listFolderContinue(cursor: String): F[Paginable[Metadata]] =
         client.expectOr(
@@ -103,6 +103,7 @@ object Dropbox {
           }
 
         for {
+          _        <- Logger[F].debug(s"Downloading file at path $filePath").toResource
           response <- runRequest
           // Note: While we technically have the metadata already, it's worth decoding again
           // just to make sure there's no race condition

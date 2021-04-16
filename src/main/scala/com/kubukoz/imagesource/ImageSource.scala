@@ -33,7 +33,7 @@ object ImageSource {
 
   def module[F[_]: Temporal: Client: Logger](config: Config): F[ImageSource[F]] =
     Dropbox.instance[F](config.dropboxToken).map { implicit dropbox =>
-      ImageSource.dropboxInstance[F]
+      dropboxInstance[F]
     }
 
   final case class Config(dropboxToken: Secret[String])

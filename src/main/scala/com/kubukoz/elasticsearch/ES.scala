@@ -67,37 +67,40 @@ object ES {
     ).parMapN(Config.apply)
   }
 
-  def javaWrapped[F[_]: MakeClient: ElasticActions: MonadThrow](config: Config): Resource[F, ES[F]] =
+  def javaWrapped[F[_]: MakeClient: ElasticActions: MonadThrow: Logger](config: Config): Resource[F, ES[F]] =
     MakeClient[F]
       .makeClient(config)
       .map { client =>
         new ES[F] {
           def indexExists(name: String): F[Boolean] =
-            ElasticActions[F]
-              .elasticRequest(
-                client.indices().existsAsync(new GetIndexRequest(name), RequestOptions.DEFAULT, _: ActionListener[lang.Boolean])
-              )
-              .map(identity(_))
+            Logger[F].debug(s"Checking if index $name exists") *>
+              ElasticActions[F]
+                .elasticRequest(
+                  client.indices().existsAsync(new GetIndexRequest(name), RequestOptions.DEFAULT, _: ActionListener[lang.Boolean])
+                )
+                .map(identity(_))
 
           def deleteIndex(name: String): F[Unit] =
-            ElasticActions[F]
-              .elasticRequest(
-                client.indices().deleteAsync(new DeleteIndexRequest(name), RequestOptions.DEFAULT, _)
-              )
-              .void
+            Logger[F].info(s"Deleting index $name") *>
+              ElasticActions[F]
+                .elasticRequest(
+                  client.indices().deleteAsync(new DeleteIndexRequest(name), RequestOptions.DEFAULT, _)
+                )
+                .void
 
           def createIndex(name: String, mappings: Json): F[Unit] =
-            ElasticActions[F]
-              .elasticRequest[CreateIndexResponse](
-                client
-                  .indices()
-                  .createAsync(
-                    new CreateIndexRequest(name).mapping(mappings.noSpaces, XContentType.JSON),
-                    RequestOptions.DEFAULT,
-                    _,
-                  )
-              )
-              .void
+            Logger[F].info(s"Creating index $name") *>
+              ElasticActions[F]
+                .elasticRequest[CreateIndexResponse](
+                  client
+                    .indices()
+                    .createAsync(
+                      new CreateIndexRequest(name).mapping(mappings.noSpaces, XContentType.JSON),
+                      RequestOptions.DEFAULT,
+                      _,
+                    )
+                )
+                .void
 
           def indexDocument(indexName: String, document: Json): F[Unit] = ElasticActions[F]
             .elasticRequest(

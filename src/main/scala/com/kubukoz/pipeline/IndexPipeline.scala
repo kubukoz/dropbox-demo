@@ -27,18 +27,14 @@ object IndexPipeline {
             OCR[F]
               .decodeText(data.content)
               .flatMap { decoded =>
-                Indexer[F].index(FileDocument(data.metadata.path, decoded.mkString(" "))).unlessA(decoded.isEmpty)
+                Indexer[F].index(FileDocument(data.metadata.path, decoded)).unlessA(decoded.strip.isEmpty)
               }
               .attempt
           }
 
     }
 
-  //todo the below should go somewhere else e.g. main or process orchestrator
-
-  // private def processWithRecovery[A, B](f: A => F[B])(recover: A => Throwable => F[Option[B]]): Pipe[F, A, B] =
-  //   _.evalMap(a => f(a).map(_.some).handleErrorWith(recover(a))).unNone
-
+  // note: this will be in CE3 Console soon
   trait ErrorPrinter[F[_]] {
     def printError(e: Throwable): F[Unit]
   }

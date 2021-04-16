@@ -32,6 +32,8 @@ object Indexer {
     ES.config[F].map(Config)
 
   def elasticSearch[F[_]: ES: MonadThrow: Logger]: F[Indexer[F]] = {
+    implicit val codec: Codec[FileDocument] = deriveCodec
+
     val indexName = "decoded"
     val fieldName = "content"
 
@@ -45,16 +47,15 @@ object Indexer {
 
     ES[F]
       .indexExists(indexName)
-      .flatTap {
-        case true  => Logger[F].debug("Index exists, all good")
-        case false => Logger[F].info(s"Index doesn't exist, creating: $indexName")
-      }
       .flatMap {
-        ES[F]
-          .createIndex(
-            indexName,
-            json"""{"properties": {$fieldName: {"type": "text"}}}""",
-          )
+        {
+          Logger[F].info(s"Index doesn't exist, creating: $indexName") *>
+            ES[F]
+              .createIndex(
+                indexName,
+                json"""{"properties": {$fieldName: {"type": "text"}}}""",
+              )
+        }
           .unlessA(_)
       }
       .as(instance)
@@ -67,9 +68,3 @@ object Indexer {
 
 //todo: fileName because currently indexed data looks like this
 final case class FileDocument(fileName: String, content: String)
-
-object FileDocument {
-  //todo: probably don't want to reuse the codec between this and the body huh
-  //fileName here might be a string, but it'll be an Uri to the viewable version in the endgame
-  implicit val codec: Codec[FileDocument] = deriveCodec
-}

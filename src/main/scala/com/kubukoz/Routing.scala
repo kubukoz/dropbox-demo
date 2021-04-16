@@ -14,6 +14,10 @@ import org.http4s.HttpRoutes
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.`Content-Type`
+import cats.effect.kernel.Deferred
+import org.http4s.server.Server
+import cats.effect.kernel.DeferredSource
+import org.http4s.Uri
 
 final case class IndexRequest(path: String)
 
@@ -21,10 +25,17 @@ object IndexRequest {
   implicit val codec: Codec.AsObject[IndexRequest] = deriveCodec
 }
 
+final case class SearchResult(imageUrl: Uri, thumbnailUrl: Uri, content: String)
+
+object SearchResult {
+  implicit val codec: Codec[SearchResult] = deriveCodec
+}
+
 object Routing {
 
   def routes[F[_]: MonadCancelThrow: JsonDecoder: Indexer: ImageSource](
-    indexingQueue: IndexingQueue[F, Path]
+    indexingQueue: IndexingQueue[F, Path],
+    serverInfo: F[Server],
   ): HttpRoutes[F] = {
     object dsl extends Http4sDsl[F]
     import dsl._
@@ -39,10 +50,22 @@ object Routing {
         } *> Accepted()
 
       case GET -> Root / "search" :? SearchQuery(query) =>
-        Ok(Indexer[F].search(query).map(_.asJson))
+        serverInfo.flatMap { server =>
+          Ok {
+            Indexer[F]
+              .search(query)
+              .map { fd =>
+                val viewUrl = server.baseUri / "view" / fd.fileName
+
+                SearchResult(imageUrl = viewUrl, thumbnailUrl = viewUrl, content = fd.content)
+              }
+              .map(_.asJson)
+          }
+        }
 
       case GET -> "view" /: rest =>
         val getMetadataAndStream =
+          //todo magic path logic...
           ImageSource[F].download(shared.Path(rest.segments.map(_.decoded()).mkString("/")))
 
         //todo might be prone to race conditions

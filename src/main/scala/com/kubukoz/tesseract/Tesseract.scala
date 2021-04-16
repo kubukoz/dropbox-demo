@@ -21,7 +21,9 @@ object Tesseract {
       ProcessRunner[F]
         .run(List("bash", "-c", "OMP_THREAD_LIMIT=1 tesseract stdin stdout -l pol+eng"))
         .use { proc =>
-          val readOutput = proc.outputUtf8.compile.string
+          val readOutput = proc.outputUtf8.compile.string.flatTap { result =>
+            Logger[F].debug(s"Decoded file: $result")
+          }
 
           val logErrors = (
             proc.errorOutputUtf8.compile.string,

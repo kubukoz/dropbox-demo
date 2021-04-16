@@ -5,12 +5,7 @@ import { SearchResult } from "./SearchResult";
 
 const baseURL = "http://localhost:4000";
 
-// I'm so sorry
-const toResult = (input: { fileName: string }): { url: string } => {
-  return { url: `${baseURL}/view${input.fileName}` };
-};
-
-type Result = { fileName: string };
+type Result = { imageUrl: string; thumbnailUrl: string; content: string };
 type Results = readonly Result[];
 
 const useRunSearch = (props: { onResults(r: Results): void }) => {
@@ -31,6 +26,7 @@ const useRunSearch = (props: { onResults(r: Results): void }) => {
       })
       .then((results) => {
         // todo should decode these results huh...
+        // data is any!!!!!!!!!
         onResults(results.data);
       })
       .catch((e) => console.log("Search failed", e))
@@ -84,10 +80,10 @@ const useDeferred = (props: {
 export const App = () => {
   const [query, setQuery] = useState("snap");
 
-  const [results, setResults] = useState<readonly { url: string }[]>([]);
+  const [results, setResults] = useState<Results>([]);
 
   const { runSearch, searching } = useRunSearch({
-    onResults: (results) => setResults(results.map(toResult)),
+    onResults: (results) => setResults(results),
   });
 
   useDeferred({
@@ -98,8 +94,10 @@ export const App = () => {
     delayMillis: 500,
   });
 
-  const resultViews = results.map(({ url }, i) => {
-    return <SearchResult imageUrl={url} thumbnailUrl={url} key={i} />;
+  const resultViews = results.map(({ imageUrl, thumbnailUrl }, i) => {
+    return (
+      <SearchResult imageUrl={imageUrl} thumbnailUrl={thumbnailUrl} key={i} />
+    );
   });
 
   return (

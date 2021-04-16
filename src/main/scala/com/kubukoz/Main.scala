@@ -23,6 +23,9 @@ import org.http4s.server.middleware.CORS
 import org.http4s.server.middleware.{Logger => ServerLogger}
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import cats.effect.kernel.Deferred
+import org.http4s.server.Server
+import cats.effect.kernel.DeferredSink
 
 object Main extends IOApp.Simple {
 
@@ -55,7 +58,7 @@ object Application {
         .flatMap(BlazeClientBuilder[F](_).resource)
         .map(client.middleware.Logger[F](logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String))))
 
-    def makeServer(routes: HttpRoutes[F]) =
+    def makeServer(routes: HttpRoutes[F], serverInfo: DeferredSink[F, Server]) =
       Resource
         .eval(Async[F].executionContext)
         .flatMap {
@@ -70,15 +73,17 @@ object Application {
             )
             .resource
         }
+        .evalTap(serverInfo.complete)
 
     for {
+      serverInfo                             <- Deferred[F, Server].toResource
       implicit0(client: Client[F])           <- makeClient
       implicit0(imageSource: ImageSource[F]) <- ImageSource.module[F](config.imageSource).toResource
       implicit0(indexer: Indexer[F])         <- Indexer.module[F](config.indexer)
       implicit0(ocr: OCR[F])                 <- OCR.module[F].pure[Resource[F, *]]
       pipeline                               <- IndexPipeline.instance[F].pure[Resource[F, *]]
       indexingQueue                          <- IndexingQueue.instance(config.indexingQueue, pipeline.run)
-      _                                      <- makeServer(Routing.routes[F](indexingQueue))
+      _                                      <- makeServer(Routing.routes[F](indexingQueue, serverInfo.get), serverInfo)
     } yield ()
   }.useForever
 
