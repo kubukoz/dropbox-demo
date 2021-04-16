@@ -37,6 +37,9 @@ import org.typelevel.log4cats.Logger
 import java.lang
 
 import util.chaining._
+import cats.Functor
+import cats.FlatMap
+import cats.MonadThrow
 
 // The ElasticSearch client
 trait ES[F[_]] {
@@ -64,88 +67,132 @@ object ES {
     ).parMapN(Config.apply)
   }
 
-  def javaWrapped[F[_]: Async: Logger](config: Config): Resource[F, ES[F]] =
-    makeClient(config)
+  def javaWrapped[F[_]: MakeClient: ElasticActions: MonadThrow](config: Config): Resource[F, ES[F]] =
+    MakeClient[F]
+      .makeClient(config)
       .map { client =>
         new ES[F] {
           def indexExists(name: String): F[Boolean] =
-            elasticRequest(
-              client.indices().existsAsync(new GetIndexRequest(name), RequestOptions.DEFAULT, _: ActionListener[lang.Boolean])
-            ).map(identity(_))
+            ElasticActions[F]
+              .elasticRequest(
+                client.indices().existsAsync(new GetIndexRequest(name), RequestOptions.DEFAULT, _: ActionListener[lang.Boolean])
+              )
+              .map(identity(_))
 
-          def deleteIndex(name: String): F[Unit] = elasticRequest(
-            client.indices().deleteAsync(new DeleteIndexRequest(name), RequestOptions.DEFAULT, _)
-          ).void
+          def deleteIndex(name: String): F[Unit] =
+            ElasticActions[F]
+              .elasticRequest(
+                client.indices().deleteAsync(new DeleteIndexRequest(name), RequestOptions.DEFAULT, _)
+              )
+              .void
 
           def createIndex(name: String, mappings: Json): F[Unit] =
-            elasticRequest[F, CreateIndexResponse](
-              client
-                .indices()
-                .createAsync(
-                  new CreateIndexRequest(name).mapping(mappings.noSpaces, XContentType.JSON),
-                  RequestOptions.DEFAULT,
-                  _,
-                )
-            ).void
+            ElasticActions[F]
+              .elasticRequest[CreateIndexResponse](
+                client
+                  .indices()
+                  .createAsync(
+                    new CreateIndexRequest(name).mapping(mappings.noSpaces, XContentType.JSON),
+                    RequestOptions.DEFAULT,
+                    _,
+                  )
+              )
+              .void
 
-          def indexDocument(indexName: String, document: Json): F[Unit] = elasticRequest(
-            client.indexAsync(new IndexRequest(indexName).source(document.noSpaces, XContentType.JSON), RequestOptions.DEFAULT, _)
-          ).void
-
-          def searchMatchFuzzy(indexName: String, field: String, text: String): F[List[Json]] = elasticRequest(
-            client.searchAsync(
-              new SearchRequest(indexName).source(
-                new SearchSourceBuilder().query(QueryBuilders.matchQuery(field, text).fuzziness(Fuzziness.TWO))
-              ),
-              RequestOptions.DEFAULT,
-              _,
+          def indexDocument(indexName: String, document: Json): F[Unit] = ElasticActions[F]
+            .elasticRequest(
+              client.indexAsync(new IndexRequest(indexName).source(document.noSpaces, XContentType.JSON), RequestOptions.DEFAULT, _)
             )
-          )
+            .void
+
+          def searchMatchFuzzy(indexName: String, field: String, text: String): F[List[Json]] = ElasticActions[F]
+            .elasticRequest(
+              client.searchAsync(
+                new SearchRequest(indexName).source(
+                  new SearchSourceBuilder().query(QueryBuilders.matchQuery(field, text).fuzziness(Fuzziness.TWO))
+                ),
+                RequestOptions.DEFAULT,
+                _,
+              )
+            )
             .flatMap(_.getHits().getHits().map(_.getSourceAsString()).toList.traverse(io.circe.parser.parse(_).liftTo[F]))
 
           val health: F[ClusterHealthStatus] =
-            elasticRequest(client.cluster().healthAsync(new ClusterHealthRequest(), RequestOptions.DEFAULT, _))
+            ElasticActions[F]
+              .elasticRequest(client.cluster().healthAsync(new ClusterHealthRequest(), RequestOptions.DEFAULT, _))
               .map(_.getStatus())
         }
       }
 
-  private def makeClient[F[_]: Sync: Logger](
-    config: Config
-  ): Resource[F, RestHighLevelClient] =
-    Logger[F].info(s"Starting ElasticSearch client with config: $config").toResource *>
-      Resource
-        .fromAutoCloseable {
-          Sync[F].delay {
-            new RestHighLevelClient(
-              RestClient
-                .builder(
-                  new HttpHost(config.host.show, config.port.value, config.scheme.value)
-                )
-                .setHttpClientConfigCallback {
-                  _.setDefaultCredentialsProvider {
-                    new BasicCredentialsProvider().tap {
-                      _.setCredentials(
-                        AuthScope.ANY,
-                        new UsernamePasswordCredentials(config.username, config.password.value),
-                      )
+  // Capability trait for creating elasticsearch clients
+  trait MakeClient[F[_]] {
+
+    def makeClient(
+      config: Config
+    ): Resource[F, RestHighLevelClient]
+
+  }
+
+  object MakeClient {
+    def apply[F[_]](implicit F: MakeClient[F]): MakeClient[F] = F
+
+    implicit def instance[F[_]: Sync: Logger]: MakeClient[F] = new MakeClient[F] {
+
+      def makeClient(
+        config: Config
+      ): Resource[F, RestHighLevelClient] =
+        Logger[F].info(s"Starting ElasticSearch client with config: $config").toResource *>
+          Resource
+            .fromAutoCloseable {
+              Sync[F].delay {
+                new RestHighLevelClient(
+                  RestClient
+                    .builder(
+                      new HttpHost(config.host.show, config.port.value, config.scheme.value)
+                    )
+                    .setHttpClientConfigCallback {
+                      _.setDefaultCredentialsProvider {
+                        new BasicCredentialsProvider().tap {
+                          _.setCredentials(
+                            AuthScope.ANY,
+                            new UsernamePasswordCredentials(config.username, config.password.value),
+                          )
+                        }
+                      }
                     }
-                  }
-                }
-            )
-          }
-        }
+                )
+              }
+            }
 
-  private def elasticRequest[F[_]: Async, A](unsafeStart: ActionListener[A] => Cancellable): F[A] = Async[F]
-    .async[A] { cb =>
-      Sync[F]
-        .delay {
-          val cancelable = unsafeStart(new ActionListener[A] {
-            def onResponse(a: A): Unit = cb(Right(a))
-            def onFailure(e: Exception): Unit = cb(Left(e))
-          })
-
-          Sync[F].delay(cancelable.cancel()).some
-        }
     }
+
+  }
+
+  // Capability trait for executing elasticsearch actions. Composes with a client.
+  trait ElasticActions[F[_]] {
+    def elasticRequest[A](unsafeStart: ActionListener[A] => Cancellable): F[A]
+  }
+
+  object ElasticActions {
+    def apply[F[_]](implicit F: ElasticActions[F]): ElasticActions[F] = F
+
+    implicit def instance[F[_]: Async]: ElasticActions[F] = new ElasticActions[F] {
+
+      def elasticRequest[A](unsafeStart: ActionListener[A] => Cancellable): F[A] =
+        Async[F].async[A] { cb =>
+          Sync[F]
+            .delay {
+              val cancelable = unsafeStart(new ActionListener[A] {
+                def onResponse(a: A): Unit = cb(Right(a))
+                def onFailure(e: Exception): Unit = cb(Left(e))
+              })
+
+              Sync[F].delay(cancelable.cancel()).some
+            }
+        }
+
+    }
+
+  }
 
 }
