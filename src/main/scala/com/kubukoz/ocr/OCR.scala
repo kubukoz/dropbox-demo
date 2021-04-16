@@ -8,7 +8,6 @@ import com.kubukoz.tesseract.Tesseract
 import org.typelevel.log4cats.Logger
 
 trait OCR[F[_]] {
-  //todo: just take bytes, yo
   def decodeText(file: fs2.Stream[F, Byte]): F[List[String]]
 }
 

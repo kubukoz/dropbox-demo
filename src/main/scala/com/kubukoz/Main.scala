@@ -32,6 +32,8 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.http4s.server.middleware.CORS
+import org.http4s.server.middleware.{Logger => ServerLogger}
+import org.http4s.client.Client
 
 final case class IndexRequest(path: String)
 
@@ -98,50 +100,47 @@ object Application {
   def run[F[_]: Async](config: Config): F[Nothing] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 
-    Resource
-      .eval(Async[F].executionContext)
-      .flatMap(BlazeClientBuilder[F](_).resource)
-      .map(client.middleware.Logger[F](logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String))))
-      .flatMap { implicit client =>
-        Resource.eval(Queue.bounded[F, Path](capacity = 10)).flatMap { requestQueue =>
-          ImageSource.module[F](config.imageSource).toResource.flatMap { implicit imageSource =>
-            Indexer.module[F](config.indexer).flatMap { implicit indexer =>
-              OCR.module[F].pure[Resource[F, *]].flatMap { implicit ocr =>
-                implicit val pipeline = IndexPipeline.instance[F]
+    val makeClient =
+      Resource
+        .eval(Async[F].executionContext)
+        .flatMap(BlazeClientBuilder[F](_).resource)
+        .map(client.middleware.Logger[F](logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String))))
 
-                val serve = Resource
-                  .eval(Async[F].executionContext)
-                  .flatMap {
-                    BlazeServerBuilder[F](_)
-                      .bindHttp(4000, "0.0.0.0")
-                      .withHttpApp(
-                        (server
-                          .middleware
-                          .Logger
-                          .httpRoutes(logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String))) _)
-                          .compose(CORS.httpRoutes[F] _)
-                          .apply(Routing.routes[F](requestQueue))
-                          .orNotFound
-                      )
-                      .resource
-                  }
-
-                val process = fs2
-                  .Stream
-                  .fromQueueUnterminated(requestQueue)
-                  .flatMap(pipeline.run)
-                  .evalMap(_.leftTraverse(Logger[F].error(_)("Processing file failed")))
-                  .compile
-                  .drain
-
-                serve *> process.background
-              }
-            }
-          }
+    def makeServer(routes: HttpRoutes[F]) =
+      Resource
+        .eval(Async[F].executionContext)
+        .flatMap {
+          BlazeServerBuilder[F](_)
+            .bindHttp(4000, "0.0.0.0")
+            .withHttpApp(
+              ServerLogger
+                .httpRoutes(logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String)))(
+                  CORS.httpRoutes[F](routes)
+                )
+                .orNotFound
+            )
+            .resource
         }
-      }
-      .useForever
-  }
+
+    def makeProcess(pipeline: IndexPipeline[F], requestQueue: Queue[F, Path]) = fs2
+      .Stream
+      .fromQueueUnterminated(requestQueue)
+      .flatMap(pipeline.run)
+      .evalMap(_.leftTraverse(Logger[F].error(_)("Processing file failed")))
+      .compile
+      .drain
+
+    for {
+      implicit0(client: Client[F])           <- makeClient
+      requestQueue                           <- Resource.eval(Queue.bounded[F, Path](capacity = 10))
+      implicit0(imageSource: ImageSource[F]) <- ImageSource.module[F](config.imageSource).toResource
+      implicit0(indexer: Indexer[F])         <- Indexer.module[F](config.indexer)
+      implicit0(ocr: OCR[F])                 <- OCR.module[F].pure[Resource[F, *]]
+      pipeline                               <- IndexPipeline.instance[F].pure[Resource[F, *]]
+      _                                      <- makeServer(Routing.routes[F](requestQueue))
+      _                                      <- makeProcess(pipeline, requestQueue).background
+    } yield ()
+  }.useForever
 
 }
 
