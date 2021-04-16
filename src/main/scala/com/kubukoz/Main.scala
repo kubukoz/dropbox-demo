@@ -24,6 +24,16 @@ import org.http4s.server.middleware.{Logger => ServerLogger}
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
+object Main extends IOApp.Simple {
+
+  val run: IO[Unit] =
+    Application
+      .config[IO]
+      .load
+      .flatMap(Application.run[IO])
+
+}
+
 // todo! checking if a file is already decoded and indexed, before trying to decode.
 // also, probably a UI form to index a path would be nice, and maybe an endpoint to see the progress (which path, how many files indexed, maybe running time), checking if a path was already indexed
 // lots of possibilities
@@ -72,15 +82,5 @@ object Application {
       _                                      <- indexingQueue.processRequests.background
     } yield ()
   }.useForever
-
-}
-
-object Main extends IOApp.Simple {
-
-  val run: IO[Unit] =
-    Application
-      .config[IO]
-      .load
-      .flatMap(Application.run[IO])
 
 }
