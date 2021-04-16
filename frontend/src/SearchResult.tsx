@@ -1,14 +1,19 @@
 import { FC } from "react";
 
-type SearchResultProps = { imageUrl: string; thumbnailUrl: string };
+export type Result = {
+  imageUrl: string;
+  thumbnailUrl: string;
+  content: string;
+};
 
-export const SearchResult: FC<SearchResultProps> = ({
+export const SearchResult: FC<Result> = ({
   imageUrl,
   thumbnailUrl,
+  content,
 }) => {
   return (
     <>
-      <a href={imageUrl} target="_blank" rel="noreferrer">
+      <a href={imageUrl} target="_blank" rel="noreferrer" title={content}>
         <img src={thumbnailUrl} style={{ height: "200px" }}></img>
       </a>
     </>

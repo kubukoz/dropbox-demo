@@ -1,11 +1,10 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { SearchBox } from "./SearchBox";
-import { SearchResult } from "./SearchResult";
+import { SearchResult, Result } from "./SearchResult";
 
 const baseURL = "http://localhost:4000";
 
-type Result = { imageUrl: string; thumbnailUrl: string; content: string };
 type Results = readonly Result[];
 
 const useRunSearch = (props: { onResults(r: Results): void }) => {
@@ -94,10 +93,8 @@ export const App = () => {
     delayMillis: 500,
   });
 
-  const resultViews = results.map(({ imageUrl, thumbnailUrl }, i) => {
-    return (
-      <SearchResult imageUrl={imageUrl} thumbnailUrl={thumbnailUrl} key={i} />
-    );
+  const resultViews = results.map((result, i) => {
+    return <SearchResult {...result} key={i} />;
   });
 
   return (
