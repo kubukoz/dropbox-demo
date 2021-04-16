@@ -77,9 +77,8 @@ object Application {
       implicit0(indexer: Indexer[F])         <- Indexer.module[F](config.indexer)
       implicit0(ocr: OCR[F])                 <- OCR.module[F].pure[Resource[F, *]]
       pipeline                               <- IndexPipeline.instance[F].pure[Resource[F, *]]
-      indexingQueue                          <- IndexingQueue.instance(config.indexingQueue, pipeline.run).toResource
+      indexingQueue                          <- IndexingQueue.instance(config.indexingQueue, pipeline.run)
       _                                      <- makeServer(Routing.routes[F](indexingQueue))
-      _                                      <- indexingQueue.processRequests.background
     } yield ()
   }.useForever
 

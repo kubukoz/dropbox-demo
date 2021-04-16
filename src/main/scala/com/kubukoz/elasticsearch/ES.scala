@@ -141,28 +141,29 @@ object ES {
       def makeClient(
         config: Config
       ): Resource[F, RestHighLevelClient] =
-        Logger[F].info(s"Starting ElasticSearch client with config: $config").toResource *>
-          Resource
-            .fromAutoCloseable {
-              Sync[F].delay {
-                new RestHighLevelClient(
-                  RestClient
-                    .builder(
-                      new HttpHost(config.host.show, config.port.value, config.scheme.value)
-                    )
-                    .setHttpClientConfigCallback {
-                      _.setDefaultCredentialsProvider {
-                        new BasicCredentialsProvider().tap {
-                          _.setCredentials(
-                            AuthScope.ANY,
-                            new UsernamePasswordCredentials(config.username, config.password.value),
-                          )
-                        }
+        Resource
+          .fromAutoCloseable {
+            Sync[F].delay {
+              new RestHighLevelClient(
+                RestClient
+                  .builder(
+                    new HttpHost(config.host.show, config.port.value, config.scheme.value)
+                  )
+                  .setHttpClientConfigCallback {
+                    _.setDefaultCredentialsProvider {
+                      new BasicCredentialsProvider().tap {
+                        _.setCredentials(
+                          AuthScope.ANY,
+                          new UsernamePasswordCredentials(config.username, config.password.value),
+                        )
                       }
                     }
-                )
-              }
+                  }
+              )
             }
+          }
+          .preAllocate(Logger[F].info(s"Starting ElasticSearch client with config: $config"))
+          .evalTap(_ => Logger[F].info(s"Started ElasticSearch"))
 
     }
 
