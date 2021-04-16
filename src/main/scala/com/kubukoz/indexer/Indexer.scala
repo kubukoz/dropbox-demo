@@ -2,7 +2,6 @@ package com.kubukoz.indexer
 
 import cats.ApplicativeThrow
 import cats.MonadThrow
-import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.implicits._
 import ciris.ConfigValue
@@ -21,7 +20,7 @@ trait Indexer[F[_]] {
 object Indexer {
   def apply[F[_]](implicit F: Indexer[F]): Indexer[F] = F
 
-  def module[F[_]: Async: Logger](config: Config): Resource[F, Indexer[F]] =
+  def module[F[_]: ES.MakeClient: ES.ElasticActions: MonadThrow: Logger](config: Config): Resource[F, Indexer[F]] =
     ES.javaWrapped[F](config.es)
       .evalMap { implicit es =>
         Indexer.elasticSearch[F]

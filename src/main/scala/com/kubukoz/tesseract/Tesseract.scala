@@ -19,7 +19,7 @@ object Tesseract {
 
     def decode(input: fs2.Stream[F, Byte]): F[String] =
       ProcessRunner[F]
-        .run(List("tesseract", "stdin", "stdout", "-l", "pol"))
+        .run(List("bash", "-c", "OMP_THREAD_LIMIT=1 tesseract stdin stdout -l pol+eng"))
         .use { proc =>
           val readOutput = proc.outputUtf8.compile.string
 

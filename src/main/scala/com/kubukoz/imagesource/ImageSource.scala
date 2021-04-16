@@ -20,6 +20,7 @@ import org.http4s.client.Client
 
 import util.chaining._
 import cats.effect.kernel.Resource
+import org.typelevel.log4cats.Logger
 
 trait ImageSource[F[_]] {
   def streamFolder(rawPath: Path): Stream[F, FileData[F]]
@@ -29,11 +30,10 @@ trait ImageSource[F[_]] {
 object ImageSource {
   def apply[F[_]](implicit F: ImageSource[F]): ImageSource[F] = F
 
-  def module[F[_]: Temporal: Client](config: Config): ImageSource[F] = {
-    implicit val dropbox = Dropbox.instance[F](config.dropboxToken.value)
-
-    ImageSource.dropboxInstance[F]
-  }
+  def module[F[_]: Temporal: Client: Logger](config: Config): F[ImageSource[F]] =
+    Dropbox.instance[F](config.dropboxToken).map { implicit dropbox =>
+      ImageSource.dropboxInstance[F]
+    }
 
   final case class Config(dropboxToken: Secret[String])
 

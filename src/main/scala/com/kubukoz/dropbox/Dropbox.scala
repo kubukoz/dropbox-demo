@@ -28,6 +28,8 @@ import org.http4s.implicits._
 import org.typelevel.ci.CIString
 
 import util.chaining._
+import ciris.Secret
+import org.typelevel.log4cats.Logger
 
 trait Dropbox[F[_]] {
   def listFolder(path: Path, recursive: Boolean): F[Paginable[Metadata]]
@@ -38,80 +40,81 @@ trait Dropbox[F[_]] {
 object Dropbox {
   def apply[F[_]](implicit F: Dropbox[F]): Dropbox[F] = F
 
-  def instance[F[_]: Client: Temporal](token: String): Dropbox[F] = new Dropbox[F] with Http4sDsl[F] with Http4sClientDsl[F] {
+  def instance[F[_]: Client: Temporal: Logger](token: Secret[String]): F[Dropbox[F]] = {
+    val theDropbox = new Dropbox[F] with Http4sDsl[F] with Http4sClientDsl[F] {
 
-    private val client: Client[F] = Client[F] { request =>
-      implicitly[Client[F]].run(
-        request
-          //todo: this will have to be read from fiber context, or something
-          .putHeaders(Authorization(Credentials.Token(AuthScheme.Bearer, token)))
-      )
-    }.pipe(
-      Retry[F](policy =
-        RetryPolicy(
-          // todo: consider this as a fallback, but by default waiting as long as the Retry-After header says
-          backoff = RetryPolicy.exponentialBackoff(maxWait = 10.seconds, maxRetry = 10),
-          // We only read from dropbox, which makes it safe to retry on all failures, no matter the request method.
-          // Without this, we wouldn't retry anything, as list_folder is a POST request.
-          retriable = (_, result) =>
-            result.fold(
-              (_: Throwable) => true,
-              !_.status.isSuccess,
-            ),
+      private val client: Client[F] = Client[F] { request =>
+        implicitly[Client[F]].run(
+          request
+            .putHeaders(Authorization(Credentials.Token(AuthScheme.Bearer, token.value)))
+        )
+      }.pipe(
+        Retry[F](policy =
+          RetryPolicy(
+            // todo: consider this as a fallback, but by default waiting as long as the Retry-After header says
+            backoff = RetryPolicy.exponentialBackoff(maxWait = 10.seconds, maxRetry = 10),
+            // We only read from dropbox, which makes it safe to retry on all failures, no matter the request method.
+            // Without this, we wouldn't retry anything, as list_folder is a POST request.
+            retriable = (_, result) =>
+              result.fold(
+                (_: Throwable) => true,
+                !_.status.isSuccess,
+              ),
+          )
         )
       )
-    )
+      //todo: toMessageSynax in http4s-circe xD
+      private val decodeError: Response[F] => F[Throwable] = _.asJsonDecode[ErrorResponse].widen
 
-    //todo: toMessageSynax in http4s-circe xD
-    private val decodeError: Response[F] => F[Throwable] = _.asJsonDecode[ErrorResponse].widen
+      private val listFolderUri = uri"https://api.dropboxapi.com/2/files/list_folder"
 
-    private val listFolderUri = uri"https://api.dropboxapi.com/2/files/list_folder"
-
-    def listFolder(path: dropbox.Path, recursive: Boolean): F[Paginable[Metadata]] =
-      client.expectOr(
-        POST(listFolderUri)
-          .withEntity(
-            json"""{
+      def listFolder(path: dropbox.Path, recursive: Boolean): F[Paginable[Metadata]] =
+        client.expectOr(
+          POST(listFolderUri)
+            .withEntity(
+              json"""{
               "path": $path,
               "recursive": $recursive,
               "limit": 100
             }"""
-          )
-      )(decodeError)
+            )
+        )(decodeError)
 
-    def listFolderContinue(cursor: String): F[Paginable[Metadata]] =
-      client.expectOr(
-        POST(listFolderUri / "continue")
-          .withEntity(
-            json"""{
+      def listFolderContinue(cursor: String): F[Paginable[Metadata]] =
+        client.expectOr(
+          POST(listFolderUri / "continue")
+            .withEntity(
+              json"""{
               "cursor": $cursor
             }"""
-          )
-      )(decodeError)
-
-    def download(filePath: dropbox.Path): Resource[F, FileDownload[F]] = {
-      val runRequest = client
-        .run {
-          POST(uri"https://content.dropboxapi.com/2/files/download")
-            .putHeaders(
-              Header.Raw(
-                name = CIString("Dropbox-API-Arg"),
-                value = json"""{"path": $filePath }""".noSpaces,
-              )
             )
-        }
+        )(decodeError)
 
-      for {
-        response <- runRequest
-        // Note: While we technically have the metadata already, it's worth decoding again
-        // just to make sure there's no race condition
-        metadata <- Resource.eval(decodeHeaderBody[F, Metadata.FileMetadata](response, CIString("Dropbox-API-Result")))
-      } yield FileDownload(
-        data = response.body,
-        metadata = metadata,
-      )
+      def download(filePath: dropbox.Path): Resource[F, FileDownload[F]] = {
+        val runRequest = client
+          .run {
+            POST(uri"https://content.dropboxapi.com/2/files/download")
+              .putHeaders(
+                Header.Raw(
+                  name = CIString("Dropbox-API-Arg"),
+                  value = json"""{"path": $filePath }""".noSpaces,
+                )
+              )
+          }
+
+        for {
+          response <- runRequest
+          // Note: While we technically have the metadata already, it's worth decoding again
+          // just to make sure there's no race condition
+          metadata <- Resource.eval(decodeHeaderBody[F, Metadata.FileMetadata](response, CIString("Dropbox-API-Result")))
+        } yield FileDownload(
+          data = response.body,
+          metadata = metadata,
+        )
+      }
     }
 
+    Logger[F].info(s"Starting Dropbox client with token: $token").as(theDropbox)
   }
 
   def decodeHeaderBody[F[_]: MonadThrow, A: Decoder](

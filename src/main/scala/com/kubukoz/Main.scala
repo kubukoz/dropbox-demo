@@ -104,35 +104,39 @@ object Application {
       .map(client.middleware.Logger[F](logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String))))
       .flatMap { implicit client =>
         Resource.eval(Queue.bounded[F, Path](capacity = 10)).flatMap { requestQueue =>
-          Indexer.module[F](config.indexer).flatMap { implicit indexer =>
-            implicit val imageSource: ImageSource[F] = ImageSource.module[F](config.imageSource)
-            implicit val ocr: OCR[F] = OCR.module[F]
+          ImageSource.module[F](config.imageSource).toResource.flatMap { implicit imageSource =>
+            Indexer.module[F](config.indexer).flatMap { implicit indexer =>
+              OCR.module[F].pure[Resource[F, *]].flatMap { implicit ocr =>
+                implicit val pipeline = IndexPipeline.instance[F]
 
-            implicit val pipeline = IndexPipeline.instance[F]
+                val serve = Resource
+                  .eval(Async[F].executionContext)
+                  .flatMap {
+                    BlazeServerBuilder[F](_)
+                      .bindHttp(4000, "0.0.0.0")
+                      .withHttpApp(
+                        (server
+                          .middleware
+                          .Logger
+                          .httpRoutes(logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String))) _)
+                          .compose(CORS.httpRoutes[F] _)
+                          .apply(Routing.routes[F](requestQueue))
+                          .orNotFound
+                      )
+                      .resource
+                  }
 
-            val serve = Resource
-              .eval(Async[F].executionContext)
-              .flatMap {
-                BlazeServerBuilder[F](_)
-                  .bindHttp(4000, "0.0.0.0")
-                  .withHttpApp(
-                    (server.middleware.Logger.httpRoutes(logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String))) _)
-                      .compose(CORS.httpRoutes[F] _)
-                      .apply(Routing.routes[F](requestQueue))
-                      .orNotFound
-                  )
-                  .resource
+                val process = fs2
+                  .Stream
+                  .fromQueueUnterminated(requestQueue)
+                  .flatMap(pipeline.run)
+                  .evalMap(_.leftTraverse(Logger[F].error(_)("Processing file failed")))
+                  .compile
+                  .drain
+
+                serve *> process.background
               }
-
-            val process = fs2
-              .Stream
-              .fromQueueUnterminated(requestQueue)
-              .flatMap(pipeline.run)
-              .evalMap(_.leftTraverse(Logger[F].error(_)("Processing file failed")))
-              .compile
-              .drain
-
-            serve *> process.background
+            }
           }
         }
       }
