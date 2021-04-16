@@ -8,32 +8,29 @@ import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.effect.kernel.MonadCancel
 import cats.effect.kernel.Resource
-import cats.effect.std.Queue
-import cats.effect.std.QueueSink
 import cats.implicits._
 import ciris.ConfigValue
 import com.kubukoz.imagesource.ImageSource
 import com.kubukoz.indexer.Indexer
 import com.kubukoz.ocr.OCR
 import com.kubukoz.pipeline.IndexPipeline
+import com.kubukoz.pipeline.IndexingQueue
 import com.kubukoz.shared.Path
 import io.circe.Codec
 import io.circe.generic.semiauto._
 import org.http4s.HttpRoutes
 import org.http4s.circe._
 import org.http4s.client
+import org.http4s.client.Client
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.`Content-Type`
 import org.http4s.implicits._
-import org.http4s.server
 import org.http4s.server.blaze.BlazeServerBuilder
-import org.typelevel.log4cats.Logger
-import org.typelevel.log4cats.SelfAwareStructuredLogger
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.http4s.server.middleware.CORS
 import org.http4s.server.middleware.{Logger => ServerLogger}
-import org.http4s.client.Client
+import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 final case class IndexRequest(path: String)
 
@@ -44,7 +41,7 @@ object IndexRequest {
 object Routing {
 
   def routes[F[_]: MonadCancelThrow: JsonDecoder: Indexer: ImageSource](
-    requestQueue: QueueSink[F, Path]
+    indexingQueue: IndexingQueue[F, Path]
   ): HttpRoutes[F] = {
     object dsl extends Http4sDsl[F]
     import dsl._
@@ -55,7 +52,7 @@ object Routing {
     HttpRoutes.of {
       case req @ POST -> Root / "index" =>
         req.asJsonDecode[IndexRequest].flatMap { body =>
-          requestQueue.offer(shared.Path(body.path))
+          indexingQueue.offer(shared.Path(body.path))
         } *> Accepted()
 
       case GET -> Root / "search" :? SearchQuery(query) =>
@@ -90,11 +87,12 @@ object Routing {
 // also, probably a UI form to index a path would be nice, and maybe an endpoint to see the progress (which path, how many files indexed, maybe running time), checking if a path was already indexed
 // lots of possibilities
 object Application {
-  final case class Config(indexer: Indexer.Config, imageSource: ImageSource.Config)
+  final case class Config(indexer: Indexer.Config, imageSource: ImageSource.Config, indexingQueue: IndexingQueue.Config)
 
   def config[F[_]: ApplicativeThrow]: ConfigValue[F, Config] = (
     Indexer.config[F],
     ImageSource.config[F],
+    IndexingQueue.config[F],
   ).parMapN(Config)
 
   def run[F[_]: Async](config: Config): F[Nothing] = {
@@ -122,23 +120,15 @@ object Application {
             .resource
         }
 
-    def makeProcess(pipeline: IndexPipeline[F], requestQueue: Queue[F, Path]) = fs2
-      .Stream
-      .fromQueueUnterminated(requestQueue)
-      .flatMap(pipeline.run)
-      .evalMap(_.leftTraverse(Logger[F].error(_)("Processing file failed")))
-      .compile
-      .drain
-
     for {
       implicit0(client: Client[F])           <- makeClient
-      requestQueue                           <- Resource.eval(Queue.bounded[F, Path](capacity = 10))
       implicit0(imageSource: ImageSource[F]) <- ImageSource.module[F](config.imageSource).toResource
       implicit0(indexer: Indexer[F])         <- Indexer.module[F](config.indexer)
       implicit0(ocr: OCR[F])                 <- OCR.module[F].pure[Resource[F, *]]
       pipeline                               <- IndexPipeline.instance[F].pure[Resource[F, *]]
-      _                                      <- makeServer(Routing.routes[F](requestQueue))
-      _                                      <- makeProcess(pipeline, requestQueue).background
+      indexingQueue                          <- IndexingQueue.instance(config.indexingQueue, pipeline.run).toResource
+      _                                      <- makeServer(Routing.routes[F](indexingQueue))
+      _                                      <- indexingQueue.processRequests.background
     } yield ()
   }.useForever
 

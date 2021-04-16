@@ -1,8 +1,10 @@
 package com.kubukoz.imagesource
 
-import cats.effect.MonadCancelThrow
 import cats.MonadThrow
+import cats.effect.MonadCancelThrow
 import cats.effect.Temporal
+import cats.effect.implicits._
+import cats.effect.kernel.Resource
 import cats.implicits._
 import ciris.ConfigValue
 import ciris.Secret
@@ -17,10 +19,9 @@ import com.kubukoz.util.FileUtils
 import fs2.Stream
 import org.http4s.MediaType
 import org.http4s.client.Client
+import org.typelevel.log4cats.Logger
 
 import util.chaining._
-import cats.effect.kernel.Resource
-import org.typelevel.log4cats.Logger
 
 trait ImageSource[F[_]] {
   def streamFolder(rawPath: Path): Stream[F, FileData[F]]
@@ -63,7 +64,7 @@ object ImageSource {
         .filter(_.metadata.mediaType.isImage)
 
       def download(rawPath: Path): Resource[F, FileData[F]] =
-        Resource.eval(parsePath(rawPath)).flatMap(Dropbox[F].download(_)).evalMap(toFileData[F])
+        parsePath(rawPath).toResource.flatMap(Dropbox[F].download(_)).evalMap(toFileData[F])
 
     }
 

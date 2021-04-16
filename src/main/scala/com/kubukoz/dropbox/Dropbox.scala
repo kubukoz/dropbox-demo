@@ -1,13 +1,12 @@
 package com.kubukoz.dropbox
 
-//todo: some parameters somewhere might be redundant
-import scala.concurrent.duration._
-
 import cats.Functor
 import cats.MonadThrow
 import cats.effect.Temporal
+import cats.effect.implicits._
 import cats.effect.kernel.Resource
 import cats.implicits._
+import ciris.Secret
 import com.kubukoz.dropbox
 import fs2.Stream
 import io.circe.Decoder
@@ -26,10 +25,11 @@ import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.Authorization
 import org.http4s.implicits._
 import org.typelevel.ci.CIString
+import org.typelevel.log4cats.Logger
+
+import scala.concurrent.duration._
 
 import util.chaining._
-import ciris.Secret
-import org.typelevel.log4cats.Logger
 
 trait Dropbox[F[_]] {
   def listFolder(path: Path, recursive: Boolean): F[Paginable[Metadata]]
@@ -106,7 +106,7 @@ object Dropbox {
           response <- runRequest
           // Note: While we technically have the metadata already, it's worth decoding again
           // just to make sure there's no race condition
-          metadata <- Resource.eval(decodeHeaderBody[F, Metadata.FileMetadata](response, CIString("Dropbox-API-Result")))
+          metadata <- decodeHeaderBody[F, Metadata.FileMetadata](response, CIString("Dropbox-API-Result")).toResource
         } yield FileDownload(
           data = response.body,
           metadata = metadata,
