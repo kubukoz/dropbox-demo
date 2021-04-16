@@ -11,13 +11,11 @@ import com.kubukoz.shared.Path
 import io.circe.Codec
 import io.circe.generic.semiauto._
 import org.http4s.HttpRoutes
+import org.http4s.Uri
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.`Content-Type`
-import cats.effect.kernel.Deferred
 import org.http4s.server.Server
-import cats.effect.kernel.DeferredSource
-import org.http4s.Uri
 
 final case class IndexRequest(path: String)
 
