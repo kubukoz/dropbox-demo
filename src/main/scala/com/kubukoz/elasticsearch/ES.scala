@@ -1,6 +1,7 @@
 package com.kubukoz.elasticsearch
 
 import cats.ApplicativeThrow
+import cats.MonadThrow
 import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
@@ -37,9 +38,6 @@ import org.typelevel.log4cats.Logger
 import java.lang
 
 import util.chaining._
-import cats.Functor
-import cats.FlatMap
-import cats.MonadThrow
 
 // The ElasticSearch client
 trait ES[F[_]] {
