@@ -5,6 +5,8 @@ import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.implicits._
 import cats.effect.kernel.Async
+import cats.effect.kernel.Deferred
+import cats.effect.kernel.DeferredSink
 import cats.effect.kernel.Resource
 import cats.implicits._
 import ciris.ConfigValue
@@ -18,14 +20,12 @@ import org.http4s.client
 import org.http4s.client.Client
 import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.implicits._
+import org.http4s.server.Server
 import org.http4s.server.blaze.BlazeServerBuilder
 import org.http4s.server.middleware.CORS
 import org.http4s.server.middleware.{Logger => ServerLogger}
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import cats.effect.kernel.Deferred
-import org.http4s.server.Server
-import cats.effect.kernel.DeferredSink
 
 object Main extends IOApp.Simple {
 

@@ -10,6 +10,7 @@ import ciris.Secret
 import com.kubukoz.dropbox
 import fs2.Stream
 import io.circe.Decoder
+import io.circe.Printer
 import io.circe.literal._
 import org.http4s.AuthScheme
 import org.http4s.Credentials
@@ -52,7 +53,7 @@ object Dropbox {
         Retry[F](policy =
           RetryPolicy(
             // todo: consider this as a fallback, but by default waiting as long as the Retry-After header says
-            backoff = RetryPolicy.exponentialBackoff(maxWait = 10.seconds, maxRetry = 10),
+            backoff = RetryPolicy.exponentialBackoff(maxWait = 10.seconds, maxRetry = 5),
             // We only read from dropbox, which makes it safe to retry on all failures, no matter the request method.
             // Without this, we wouldn't retry anything, as list_folder is a POST request.
             retriable = (_, result) =>
@@ -97,7 +98,7 @@ object Dropbox {
               .putHeaders(
                 Header.Raw(
                   name = CIString("Dropbox-API-Arg"),
-                  value = json"""{"path": $filePath }""".noSpaces,
+                  value = json"""{"path": $filePath }""".printWith(Printer.noSpaces.copy(escapeNonAscii = true)),
                 )
               )
           }
