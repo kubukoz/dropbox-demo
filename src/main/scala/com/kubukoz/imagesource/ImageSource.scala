@@ -44,7 +44,7 @@ object ImageSource {
     env("DROPBOX_TOKEN").secret.map(Config(_))
   }
 
-  def dropboxInstance[F[_]: Dropbox: MonadCancelThrow]: ImageSource[F] =
+  def dropboxInstance[F[_]: Dropbox: MonadCancelThrow: Logger]: ImageSource[F] =
     new ImageSource[F] {
 
       private def parsePath(rawPath: Path) = dropbox.Path.parse(rawPath.value).leftMap(new Throwable(_)).liftTo[F]
@@ -59,7 +59,13 @@ object ImageSource {
             }
         }
         .collect { case f: Metadata.FileMetadata => f }
-        .flatMap(meta => Dropbox[F].download(meta.path_lower).pipe(Stream.resource(_)))
+        .flatMap { meta =>
+          Stream.resource(Dropbox[F].download(meta.path_lower)).handleErrorWith {
+            Logger[F]
+              .error(_)(show"Couldn't download file from dropbox: ${meta.path_lower}")
+              .pipe(fs2.Stream.exec(_))
+          }
+        }
         .evalMap(toFileData[F])
         .filter(_.metadata.mediaType.isImage)
 

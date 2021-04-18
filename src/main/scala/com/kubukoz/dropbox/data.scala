@@ -12,6 +12,7 @@ import io.circe.syntax._
 
 import fs2.Stream
 import com.kubukoz.util.DiscriminatorCodecs
+import cats.Show
 
 private object Encoding {
   val codecs: DiscriminatorCodecs = DiscriminatorCodecs.withDiscriminator(".tag")
@@ -56,6 +57,7 @@ object Path {
     Encoder[String].contramap(_.render),
   )
 
+  implicit val show: Show[Path] = Show.fromToString
 }
 
 // ListFolderResult in dropbox api
