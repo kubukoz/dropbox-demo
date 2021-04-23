@@ -31,7 +31,7 @@ object Indexer {
   def config[F[_]: ApplicativeThrow]: ConfigValue[F, Config] =
     ES.config[F].map(Config)
 
-  def elasticSearch[F[_]: ES: MonadThrow: Logger]: F[Indexer[F]] = {
+  private def elasticSearch[F[_]: ES: MonadThrow: Logger]: F[Indexer[F]] = {
     implicit val codec: Codec[FileDocument] = deriveCodec
 
     val indexName = "decoded"

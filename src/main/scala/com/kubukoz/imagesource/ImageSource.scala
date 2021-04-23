@@ -44,7 +44,7 @@ object ImageSource {
     env("DROPBOX_TOKEN").secret.map(Config(_))
   }
 
-  def dropboxInstance[F[_]: Dropbox: MonadCancelThrow: Logger]: ImageSource[F] =
+  private def dropboxInstance[F[_]: Dropbox: MonadCancelThrow: Logger]: ImageSource[F] =
     new ImageSource[F] {
 
       private def parsePath(rawPath: Path) = dropbox.Path.parse(rawPath.value).leftMap(new Throwable(_)).liftTo[F]
