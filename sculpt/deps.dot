@@ -6,6 +6,7 @@ digraph G {
   "ImageSource" -> "Dropbox";
   "Indexer" -> "ES";
   "OCR" -> "Tesseract";
+  "IndexingQueue" -> "IndexPipeline";
   "IndexPipeline" -> "ImageSource";
   "IndexPipeline" -> "Indexer";
   "IndexPipeline" -> "OCR";
