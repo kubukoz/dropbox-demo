@@ -4,6 +4,6 @@ env.sh
 
 docker/elastic-data
 
-sculpt/*.dot
-sculpt/*.svg
-sculpt/*.json
+sculpt/sculpt.dot
+sculpt/sculpt.svg
+sculpt/sculpt.json

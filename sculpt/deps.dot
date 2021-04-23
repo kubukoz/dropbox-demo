@@ -1,0 +1,14 @@
+digraph G {
+  "Application" -> "Routing";
+  "Routing" -> "ImageSource";
+  "Routing" -> "Indexer";
+  "Routing" -> "IndexingQueue";
+  "ImageSource" -> "Dropbox";
+  "Indexer" -> "ES";
+  "OCR" -> "Tesseract";
+  "IndexPipeline" -> "ImageSource";
+  "IndexPipeline" -> "Indexer";
+  "IndexPipeline" -> "OCR";
+  "Tesseract" -> "ProcessRunner";
+}
+
