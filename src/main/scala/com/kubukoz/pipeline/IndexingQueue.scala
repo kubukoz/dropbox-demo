@@ -25,8 +25,7 @@ object IndexingQueue {
     config: Config,
     processOne: Request => Stream[IO, Either[Throwable, Unit]],
   )(
-    implicit logger: Logger[IO],
-    SC: fs2.Compiler[IO, IO],
+    implicit logger: Logger[IO]
   ): Resource[IO, IndexingQueue[Request]] =
     Queue.bounded[IO, Request](capacity = config.capacity).toResource.flatMap { requestQueue =>
       val q = new IndexingQueue[Request] {
