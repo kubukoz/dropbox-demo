@@ -1,16 +1,21 @@
+val Versions = new {
+  val http4s = "1.0.0-M21"
+  val circe = "0.14.0-M5"
+}
+
 val Deps = new {
   val log4cats = "org.typelevel" %% "log4cats-core" % "2.0.0"
   val ciris = "is.cir" %% "ciris" % "2.0.0-RC2"
-  val circeGeneric = "io.circe" %% "circe-generic" % "0.14.0-M5"
+  val circeGeneric = "io.circe" %% "circe-generic" % Versions.circe
 
   val circeLiteral = Seq(
-    "io.circe" %% "circe-literal" % "0.14.0-M5",
-    "io.circe" %% "circe-parser" % "0.14.0-M5",
+    "io.circe" %% "circe-literal" % Versions.circe,
+    "io.circe" %% "circe-parser" % Versions.circe,
   )
 
-  val http4sClient = "org.http4s" %% "http4s-client" % "1.0.0-M21"
-  val http4sCirce = "org.http4s" %% "http4s-circe" % "1.0.0-M21"
-  val http4sDsl = "org.http4s" %% "http4s-dsl" % "1.0.0-M21"
+  val http4sClient = "org.http4s" %% "http4s-client" % Versions.http4s
+  val http4sCirce = "org.http4s" %% "http4s-circe" % Versions.http4s
+  val http4sDsl = "org.http4s" %% "http4s-dsl" % Versions.http4s
 }
 
 ThisBuild / organization := "com.kubukoz"
@@ -34,8 +39,8 @@ val commonSettings = Seq(
 val shared = project.settings(
   commonSettings,
   libraryDependencies ++= Seq(
-    "org.http4s" %% "http4s-core" % "1.0.0-M21",
-    "io.circe" %% "circe-core" % "0.14.0-M5",
+    "org.http4s" %% "http4s-core" % Versions.http4s,
+    "io.circe" %% "circe-core" % Versions.circe,
   ),
 )
 
@@ -80,11 +85,12 @@ lazy val root = (project in file("."))
     name := "dropbox-demo",
     commonSettings,
     libraryDependencies ++= Seq(
-      "org.http4s" %% "http4s-blaze-client" % "1.0.0-M21",
-      "org.http4s" %% "http4s-blaze-server" % "1.0.0-M21",
+      "org.http4s" %% "http4s-blaze-client" % Versions.http4s,
+      "org.http4s" %% "http4s-blaze-server" % Versions.http4s,
       "org.typelevel" %% "log4cats-slf4j" % "2.0.0",
       "ch.qos.logback" % "logback-classic" % "1.2.3",
     ),
   )
+  .enablePlugins(JavaAppPackaging)
   .dependsOn(imagesource, ocr, indexer)
   .aggregate(shared, imagesource, ocr, indexer)
