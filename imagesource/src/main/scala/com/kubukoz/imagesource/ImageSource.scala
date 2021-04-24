@@ -21,8 +21,8 @@ import org.typelevel.log4cats.Logger
 import util.chaining._
 
 trait ImageSource {
-  def streamFolder(rawPath: Path): Stream[IO, FileData[IO]]
-  def download(rawPath: Path): Resource[IO, FileData[IO]]
+  def streamFolder(rawPath: Path): Stream[IO, FileData]
+  def download(rawPath: Path): Resource[IO, FileData]
 }
 
 object ImageSource {
@@ -45,7 +45,7 @@ object ImageSource {
 
       private def parsePath(rawPath: Path) = com.kubukoz.dropbox.Path.parse(rawPath.value).leftMap(new Throwable(_)).liftTo[IO]
 
-      def streamFolder(rawPath: Path): Stream[IO, FileData[IO]] = Stream
+      def streamFolder(rawPath: Path): Stream[IO, FileData] = Stream
         .eval(parsePath(rawPath))
         .flatMap { path =>
           Dropbox
@@ -65,14 +65,14 @@ object ImageSource {
         .evalMap(toFileData)
         .filter(_.metadata.mediaType.isImage)
 
-      def download(rawPath: Path): Resource[IO, FileData[IO]] =
+      def download(rawPath: Path): Resource[IO, FileData] =
         parsePath(rawPath).toResource.flatMap(dropbox.download(_)).evalMap(toFileData)
 
     }
 
-  def toFileData(fd: FileDownload[IO]): IO[FileData[IO]] =
+  def toFileData(fd: FileDownload): IO[FileData] =
     FileUtils
-      .extension[IO](fd.metadata.name)
+      .extension(fd.metadata.name)
       .flatMap(ext => MediaType.forExtension(ext).liftTo[IO](new Throwable(s"Unknown extension: $ext")))
       .map { mediaType =>
         FileData(

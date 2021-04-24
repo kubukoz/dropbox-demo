@@ -13,6 +13,7 @@ import io.circe.syntax._
 import fs2.Stream
 import com.kubukoz.util.DiscriminatorCodecs
 import cats.Show
+import cats.effect.IO
 
 private object Encoding {
   val codecs: DiscriminatorCodecs = DiscriminatorCodecs.withDiscriminator(".tag")
@@ -107,4 +108,4 @@ object Metadata {
 
 }
 
-final case class FileDownload[F[_]](data: Stream[F, Byte], metadata: Metadata.FileMetadata)
+final case class FileDownload(data: Stream[IO, Byte], metadata: Metadata.FileMetadata)

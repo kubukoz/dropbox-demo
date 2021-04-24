@@ -1,9 +1,9 @@
 package com.kubukoz.util
 
-import cats.Applicative
 import cats.implicits._
+import cats.effect.IO
 
 object FileUtils {
   // lazy impl, good signature
-  def extension[F[_]: Applicative](name: String): F[String] = name.split("\\.").last.pure[F]
+  def extension(name: String): IO[String] = name.split("\\.").last.pure[IO]
 }

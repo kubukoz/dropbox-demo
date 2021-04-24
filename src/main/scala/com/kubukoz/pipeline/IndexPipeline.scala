@@ -9,15 +9,14 @@ import com.kubukoz.shared.Path
 import fs2.Stream
 import cats.effect.IO
 
-trait IndexPipeline[F[_]] {
-  def run(path: Path): Stream[F, Either[Throwable, Unit]]
+trait IndexPipeline {
+  def run(path: Path): Stream[IO, Either[Throwable, Unit]]
 }
 
 object IndexPipeline {
-  def apply[F[_]](implicit F: IndexPipeline[F]): IndexPipeline[F] = F
 
-  def instance(implicit is: ImageSource, ocr: OCR, indexer: Indexer): IndexPipeline[IO] =
-    new IndexPipeline[IO] {
+  def instance(implicit is: ImageSource, ocr: OCR, indexer: Indexer): IndexPipeline =
+    new IndexPipeline {
 
       def run(path: Path): Stream[IO, Either[Throwable, Unit]] =
         is

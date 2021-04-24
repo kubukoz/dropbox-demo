@@ -3,7 +3,6 @@ package com.kubukoz
 import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.implicits._
-import cats.effect.kernel.Async
 import cats.effect.kernel.Deferred
 import cats.effect.kernel.DeferredSink
 import cats.effect.kernel.Resource

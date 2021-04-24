@@ -33,7 +33,7 @@ import cats.effect.IO
 trait Dropbox {
   def listFolder(path: Path, recursive: Boolean): IO[Paginable[Metadata]]
   def listFolderContinue(cursor: String): IO[Paginable[Metadata]]
-  def download(filePath: Path): Resource[IO, FileDownload[IO]]
+  def download(filePath: Path): Resource[IO, FileDownload]
 }
 
 object Dropbox {
@@ -88,7 +88,7 @@ object Dropbox {
             )
         )(decodeError)
 
-      def download(filePath: dropbox.Path): Resource[IO, FileDownload[IO]] = {
+      def download(filePath: dropbox.Path): Resource[IO, FileDownload] = {
         val runRequest = client
           .run {
             POST(uri"https://content.dropboxapi.com/2/files/download")
