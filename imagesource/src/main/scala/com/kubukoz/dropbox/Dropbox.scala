@@ -61,7 +61,7 @@ object Dropbox {
           )
         )
       )
-      private val decodeError: Response[IO] => IO[Throwable] = _.asJsonDecode[ErrorResponse].widen
+      private val decodeError: Response[IO] => IO[Throwable] = _.asJsonDecode[ErrorResponse]
 
       private val listFolderUri = uri"https://api.dropboxapi.com/2/files/list_folder"
 
