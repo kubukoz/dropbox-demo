@@ -1,25 +1,23 @@
 package com.kubukoz.ocr
 
-import cats.effect.Concurrent
-import com.kubukoz.process.ProcessRunner
+import cats.effect.IO
 import com.kubukoz.tesseract.Tesseract
 import org.typelevel.log4cats.Logger
 
-trait OCR[F[_]] {
-  def decodeText(file: fs2.Stream[F, Byte]): F[String]
+trait OCR {
+  def decodeText(file: fs2.Stream[IO, Byte]): IO[String]
 }
 
 object OCR {
-  def apply[F[_]](implicit F: OCR[F]): OCR[F] = F
 
-  def module[F[_]: Concurrent: ProcessRunner: Logger]: OCR[F] = {
-    implicit val tesseract = Tesseract.instance[F]
+  def module(implicit L: Logger[IO]): OCR = {
+    implicit val tesseract = Tesseract.instance
 
-    OCR.tesseractInstance[F]
+    OCR.tesseractInstance
   }
 
-  private def tesseractInstance[F[_]: Tesseract]: OCR[F] = new OCR[F] {
-    def decodeText(file: fs2.Stream[F, Byte]): F[String] = Tesseract[F].decode(file)
+  private def tesseractInstance(implicit t: Tesseract): OCR = new OCR {
+    def decodeText(file: fs2.Stream[IO, Byte]): IO[String] = t.decode(file)
   }
 
 }

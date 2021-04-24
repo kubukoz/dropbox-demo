@@ -1,9 +1,7 @@
 package com.kubukoz
 
-import cats.effect.MonadCancelThrow
-import cats.effect.kernel.MonadCancel
+import cats.effect.IO
 import cats.effect.kernel.Resource
-import cats.implicits._
 import com.kubukoz.imagesource.ImageSource
 import com.kubukoz.indexer.Indexer
 import com.kubukoz.pipeline.IndexingQueue
@@ -31,11 +29,14 @@ object SearchResult {
 
 object Routing {
 
-  def routes[F[_]: MonadCancelThrow: JsonDecoder: Indexer: ImageSource](
-    indexingQueue: IndexingQueue[F, Path],
-    serverInfo: F[Server],
-  ): HttpRoutes[F] = {
-    object dsl extends Http4sDsl[F]
+  def routes(
+    indexingQueue: IndexingQueue[Path],
+    serverInfo: IO[Server],
+  )(
+    implicit indexer: Indexer,
+    imageSource: ImageSource,
+  ): HttpRoutes[IO] = {
+    object dsl extends Http4sDsl[IO]
     import dsl._
     import io.circe.syntax._
 
@@ -50,7 +51,7 @@ object Routing {
       case GET -> Root / "search" :? SearchQuery(query) =>
         serverInfo.flatMap { server =>
           Ok {
-            Indexer[F]
+            indexer
               .search(query)
               .map { fd =>
                 val viewUrl = server.baseUri / "view" / fd.fileName
@@ -64,12 +65,12 @@ object Routing {
       case GET -> "view" /: rest =>
         val getMetadataAndStream =
           //todo magic path logic...
-          ImageSource[F].download(shared.Path(rest.segments.map(_.decoded()).mkString("/")))
+          imageSource.download(shared.Path(rest.segments.map(_.decoded()).mkString("/")))
 
         //todo might be prone to race conditions
         //todo caching etc. would be nice
         //also content length
-        MonadCancel[F].uncancelable { poll =>
+        IO.uncancelable { poll =>
           // We need the value of this resource later
           // so we cancelably-allocate it, then hope for the best (that any cancelations on the request will shutdown this resource).
           poll(getMetadataAndStream.allocated)

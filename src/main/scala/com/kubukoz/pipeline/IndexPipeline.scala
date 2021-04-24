@@ -1,7 +1,5 @@
 package com.kubukoz.pipeline
 
-import cats.effect.kernel.Concurrent
-import cats.effect.kernel.Sync
 import cats.implicits._
 import com.kubukoz.imagesource.ImageSource
 import com.kubukoz.indexer.FileDocument
@@ -9,6 +7,7 @@ import com.kubukoz.indexer.Indexer
 import com.kubukoz.ocr.OCR
 import com.kubukoz.shared.Path
 import fs2.Stream
+import cats.effect.IO
 
 trait IndexPipeline[F[_]] {
   def run(path: Path): Stream[F, Either[Throwable, Unit]]
@@ -17,32 +16,21 @@ trait IndexPipeline[F[_]] {
 object IndexPipeline {
   def apply[F[_]](implicit F: IndexPipeline[F]): IndexPipeline[F] = F
 
-  def instance[F[_]: ImageSource: OCR: Indexer: Concurrent]: IndexPipeline[F] =
-    new IndexPipeline[F] {
+  def instance(implicit is: ImageSource, ocr: OCR, indexer: Indexer): IndexPipeline[IO] =
+    new IndexPipeline[IO] {
 
-      def run(path: Path): Stream[F, Either[Throwable, Unit]] =
-        ImageSource[F]
+      def run(path: Path): Stream[IO, Either[Throwable, Unit]] =
+        is
           .streamFolder(path)
           .parEvalMapUnordered(maxConcurrent = 10) { data =>
-            OCR[F]
+            ocr
               .decodeText(data.content)
               .flatMap { decoded =>
-                Indexer[F].index(FileDocument(data.metadata.path, decoded)).unlessA(decoded.strip.isEmpty)
+                indexer.index(FileDocument(data.metadata.path, decoded)).unlessA(decoded.strip.isEmpty)
               }
               .attempt
           }
 
     }
-
-  // note: this will be in CE3 Console soon
-  trait ErrorPrinter[F[_]] {
-    def printError(e: Throwable): F[Unit]
-  }
-
-  object ErrorPrinter {
-    def apply[F[_]](implicit F: ErrorPrinter[F]): ErrorPrinter[F] = F
-
-    def forAsyncConsole[F[_]: Sync]: ErrorPrinter[F] = e => Sync[F].delay(e.printStackTrace())
-  }
 
 }

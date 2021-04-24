@@ -1,8 +1,5 @@
 package com.kubukoz.dropbox
 
-import cats.Functor
-import cats.MonadThrow
-import cats.effect.Temporal
 import cats.effect.implicits._
 import cats.effect.kernel.Resource
 import cats.implicits._
@@ -31,26 +28,26 @@ import org.typelevel.log4cats.Logger
 import scala.concurrent.duration._
 
 import util.chaining._
+import cats.effect.IO
 
-trait Dropbox[F[_]] {
-  def listFolder(path: Path, recursive: Boolean): F[Paginable[Metadata]]
-  def listFolderContinue(cursor: String): F[Paginable[Metadata]]
-  def download(filePath: Path): Resource[F, FileDownload[F]]
+trait Dropbox {
+  def listFolder(path: Path, recursive: Boolean): IO[Paginable[Metadata]]
+  def listFolderContinue(cursor: String): IO[Paginable[Metadata]]
+  def download(filePath: Path): Resource[IO, FileDownload[IO]]
 }
 
 object Dropbox {
-  def apply[F[_]](implicit F: Dropbox[F]): Dropbox[F] = F
 
-  def instance[F[_]: Client: Temporal: Logger](token: Secret[String]): F[Dropbox[F]] = {
-    val theDropbox = new Dropbox[F] with Http4sDsl[F] with Http4sClientDsl[F] {
+  def instance(token: Secret[String])(implicit _client: Client[IO], logger: Logger[IO]): IO[Dropbox] = {
+    val theDropbox = new Dropbox with Http4sDsl[IO] with Http4sClientDsl[IO] {
 
-      private val client: Client[F] = Client[F] { request =>
-        implicitly[Client[F]].run(
+      private val client: Client[IO] = Client[IO] { request =>
+        implicitly[Client[IO]].run(
           request
             .putHeaders(Authorization(Credentials.Token(AuthScheme.Bearer, token.value)))
         )
       }.pipe(
-        Retry[F](policy =
+        Retry[IO](policy =
           RetryPolicy(
             // todo: consider this as a fallback, but by default waiting as long as the Retry-After header says
             backoff = RetryPolicy.exponentialBackoff(maxWait = 10.seconds, maxRetry = 5),
@@ -64,13 +61,13 @@ object Dropbox {
           )
         )
       )
-      private val decodeError: Response[F] => F[Throwable] = _.asJsonDecode[ErrorResponse].widen
+      private val decodeError: Response[IO] => IO[Throwable] = _.asJsonDecode[ErrorResponse].widen
 
       private val listFolderUri = uri"https://api.dropboxapi.com/2/files/list_folder"
 
-      def listFolder(path: dropbox.Path, recursive: Boolean): F[Paginable[Metadata]] =
-        Logger[F].debug(s"Listing folder at path $path, recursively? $recursive") *>
-          client.expectOr(
+      def listFolder(path: dropbox.Path, recursive: Boolean): IO[Paginable[Metadata]] =
+        Logger[IO].debug(s"Listing folder at path $path, recursively? $recursive") *>
+          client.expectOr[Paginable[Metadata]](
             POST(listFolderUri)
               .withEntity(
                 json"""{
@@ -81,8 +78,8 @@ object Dropbox {
               )
           )(decodeError)
 
-      def listFolderContinue(cursor: String): F[Paginable[Metadata]] =
-        client.expectOr(
+      def listFolderContinue(cursor: String): IO[Paginable[Metadata]] =
+        client.expectOr[Paginable[Metadata]](
           POST(listFolderUri / "continue")
             .withEntity(
               json"""{
@@ -91,7 +88,7 @@ object Dropbox {
             )
         )(decodeError)
 
-      def download(filePath: dropbox.Path): Resource[F, FileDownload[F]] = {
+      def download(filePath: dropbox.Path): Resource[IO, FileDownload[IO]] = {
         val runRequest = client
           .run {
             POST(uri"https://content.dropboxapi.com/2/files/download")
@@ -104,11 +101,11 @@ object Dropbox {
           }
 
         for {
-          _        <- Logger[F].debug(s"Downloading file at path $filePath").toResource
+          _        <- Logger[IO].debug(s"Downloading file at path $filePath").toResource
           response <- runRequest
           // Note: While we technically have the metadata already, it's worth decoding again
           // just to make sure there's no race condition
-          metadata <- decodeHeaderBody[F, Metadata.FileMetadata](response, CIString("Dropbox-API-Result")).toResource
+          metadata <- decodeHeaderBody[Metadata.FileMetadata](response, CIString("Dropbox-API-Result")).toResource
         } yield FileDownload(
           data = response.body,
           metadata = metadata,
@@ -116,23 +113,23 @@ object Dropbox {
       }
     }
 
-    Logger[F].info(s"Starting Dropbox client with token: $token").as(theDropbox)
+    Logger[IO].info(s"Starting Dropbox client with token: $token").as(theDropbox)
   }
 
-  def decodeHeaderBody[F[_]: MonadThrow, A: Decoder](
-    response: Response[F],
+  def decodeHeaderBody[A: Decoder](
+    response: Response[IO],
     headerName: CIString,
-  ): F[A] =
+  ): IO[A] =
     response
       .headers
       .get(headerName)
-      .liftTo[F](new Throwable(show"Missing header: $headerName"))
+      .liftTo[IO](new Throwable(show"Missing header: $headerName"))
       .ensure(new Throwable(show"Only one value was expected in header: $headerName"))(_.size === 1)
       .map(_.head.value)
-      .flatMap(io.circe.parser.decode[A](_).liftTo[F])
+      .flatMap(io.circe.parser.decode[A](_).liftTo[IO])
 
-  def paginate[F[_]: Functor, Element](fetch: Option[String] => F[Paginable[Element]]): Stream[F, Element] = Stream
-    .unfoldLoopEval[F, Option[String], List[Element]](Option.empty[String]) {
+  def paginate[Element](fetch: Option[String] => IO[Paginable[Element]]): Stream[IO, Element] = Stream
+    .unfoldLoopEval[IO, Option[String], List[Element]](Option.empty[String]) {
       fetch(_).map { pagin =>
         (
           pagin.entries,

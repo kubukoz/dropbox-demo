@@ -1,7 +1,5 @@
 package com.kubukoz.indexer
 
-import cats.ApplicativeThrow
-import cats.MonadThrow
 import cats.effect.kernel.Resource
 import cats.implicits._
 import ciris.ConfigValue
@@ -11,46 +9,50 @@ import io.circe.generic.semiauto._
 import io.circe.literal._
 import io.circe.syntax._
 import org.typelevel.log4cats.Logger
+import cats.effect.IO
 
-trait Indexer[F[_]] {
-  def index(doc: FileDocument): F[Unit]
-  def search(query: String): fs2.Stream[F, FileDocument]
+trait Indexer {
+  def index(doc: FileDocument): IO[Unit]
+  def search(query: String): fs2.Stream[IO, FileDocument]
 }
 
 object Indexer {
-  def apply[F[_]](implicit F: Indexer[F]): Indexer[F] = F
 
-  def module[F[_]: ES.MakeClient: ES.ElasticActions: MonadThrow: Logger](config: Config): Resource[F, Indexer[F]] =
-    ES.javaWrapped[F](config.es)
+  def module(
+    config: Config
+  )(
+    implicit logger: Logger[IO]
+  ): Resource[IO, Indexer] =
+    ES.javaWrapped(config.es)
       .evalMap { implicit es =>
-        Indexer.elasticSearch[F]
+        Indexer.elasticSearch
       }
 
   final case class Config(es: ES.Config)
 
-  def config[F[_]: ApplicativeThrow]: ConfigValue[F, Config] =
-    ES.config[F].map(Config)
+  val config: ConfigValue[IO, Config] =
+    ES.config.map(Config)
 
-  private def elasticSearch[F[_]: ES: MonadThrow: Logger]: F[Indexer[F]] = {
+  private def elasticSearch(implicit es: ES, logger: Logger[IO]): IO[Indexer] = {
     implicit val codec: Codec[FileDocument] = deriveCodec
 
     val indexName = "decoded"
     val fieldName = "content"
 
-    val instance = new Indexer[F] {
-      def index(doc: FileDocument): F[Unit] =
-        ES[F].indexDocument(indexName, doc.asJson)
+    val instance = new Indexer {
+      def index(doc: FileDocument): IO[Unit] =
+        es.indexDocument(indexName, doc.asJson)
 
-      def search(query: String): fs2.Stream[F, FileDocument] =
-        fs2.Stream.evals(ES[F].searchMatchFuzzy(indexName, fieldName, query)).evalMap(_.as[FileDocument].liftTo[F])
+      def search(query: String): fs2.Stream[IO, FileDocument] =
+        fs2.Stream.evals(es.searchMatchFuzzy(indexName, fieldName, query)).evalMap(_.as[FileDocument].liftTo[IO])
     }
 
-    ES[F]
+    es
       .indexExists(indexName)
       .flatMap {
         {
-          Logger[F].info(s"Index doesn't exist, creating: $indexName") *>
-            ES[F]
+          Logger[IO].info(s"Index doesn't exist, creating: $indexName") *>
+            es
               .createIndex(
                 indexName,
                 json"""{"properties": {$fieldName: {"type": "text"}}}""",
@@ -60,7 +62,7 @@ object Indexer {
       }
       .as(instance)
       .onError { case e =>
-        Logger[F].error(e)("Couldn't check/create index, ensure ElasticSearch is running")
+        Logger[IO].error(e)("Couldn't check/create index, ensure ElasticSearch is running")
       }
   }
 

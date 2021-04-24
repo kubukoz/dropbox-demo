@@ -1,6 +1,5 @@
 package com.kubukoz
 
-import cats.ApplicativeThrow
 import cats.effect.IO
 import cats.effect.IOApp
 import cats.effect.implicits._
@@ -31,9 +30,9 @@ object Main extends IOApp.Simple {
 
   val run: IO[Unit] =
     Application
-      .config[IO]
+      .config
       .load
-      .flatMap(Application.run[IO])
+      .flatMap(Application.run)
 
 }
 
@@ -43,31 +42,31 @@ object Main extends IOApp.Simple {
 object Application {
   final case class Config(indexer: Indexer.Config, imageSource: ImageSource.Config, indexingQueue: IndexingQueue.Config)
 
-  def config[F[_]: ApplicativeThrow]: ConfigValue[F, Config] = (
-    Indexer.config[F],
-    ImageSource.config[F],
-    IndexingQueue.config[F],
+  val config: ConfigValue[IO, Config] = (
+    Indexer.config,
+    ImageSource.config,
+    IndexingQueue.config,
   ).parMapN(Config)
 
-  def run[F[_]: Async](config: Config): F[Nothing] = {
-    implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
+  def run(config: Config): IO[Nothing] = {
+    implicit val logger: SelfAwareStructuredLogger[IO] = Slf4jLogger.getLogger[IO]
 
     val makeClient =
       Resource
-        .eval(Async[F].executionContext)
-        .flatMap(BlazeClientBuilder[F](_).resource)
-        .map(client.middleware.Logger[F](logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String))))
+        .eval(IO.executionContext)
+        .flatMap(BlazeClientBuilder[IO](_).resource)
+        .map(client.middleware.Logger[IO](logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String))))
 
-    def makeServer(routes: HttpRoutes[F], serverInfo: DeferredSink[F, Server]) =
+    def makeServer(routes: HttpRoutes[IO], serverInfo: DeferredSink[IO, Server]) =
       Resource
-        .eval(Async[F].executionContext)
+        .eval(IO.executionContext)
         .flatMap {
-          BlazeServerBuilder[F](_)
+          BlazeServerBuilder[IO](_)
             .bindHttp(4000, "0.0.0.0")
             .withHttpApp(
               ServerLogger
                 .httpRoutes(logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String)))(
-                  CORS.httpRoutes[F](routes)
+                  CORS.httpRoutes[IO](routes)
                 )
                 .orNotFound
             )
@@ -76,14 +75,14 @@ object Application {
         .evalTap(serverInfo.complete)
 
     for {
-      serverInfo                             <- Deferred[F, Server].toResource
-      implicit0(client: Client[F])           <- makeClient
-      implicit0(imageSource: ImageSource[F]) <- ImageSource.module[F](config.imageSource).toResource
-      implicit0(indexer: Indexer[F])         <- Indexer.module[F](config.indexer)
-      implicit0(ocr: OCR[F])                 <- OCR.module[F].pure[Resource[F, *]]
-      pipeline                               <- IndexPipeline.instance[F].pure[Resource[F, *]]
-      indexingQueue                          <- IndexingQueue.instance(config.indexingQueue, pipeline.run)
-      _                                      <- makeServer(Routing.routes[F](indexingQueue, serverInfo.get), serverInfo)
+      serverInfo                          <- Deferred[IO, Server].toResource
+      implicit0(client: Client[IO])       <- makeClient
+      implicit0(imageSource: ImageSource) <- ImageSource.module(config.imageSource).toResource
+      implicit0(indexer: Indexer)         <- Indexer.module(config.indexer)
+      implicit0(ocr: OCR)                 <- OCR.module(logger).pure[Resource[IO, *]]
+      pipeline                            <- IndexPipeline.instance.pure[Resource[IO, *]]
+      indexingQueue                       <- IndexingQueue.instance(config.indexingQueue, pipeline.run)
+      _                                   <- makeServer(Routing.routes(indexingQueue, serverInfo.get), serverInfo)
     } yield ()
   }.useForever
 
