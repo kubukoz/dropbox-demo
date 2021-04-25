@@ -1,13 +1,13 @@
 package com.kubukoz.indexer
 
-import com.kubukoz.FiberLocal
 import cats.Monad
 import cats.implicits._
+import cats.effect.kernel.Ref
 
 object TestIndexerInstances {
 
-  def simple[F[_]: FiberLocal.Make: Monad]: F[Indexer[F]] =
-    FiberLocal.Make[F].of(List.empty[FileDocument]).map { ref =>
+  def simple[F[_]: Ref.Make: Monad]: F[Indexer[F]] =
+    Ref[F].of(List.empty[FileDocument]).map { ref =>
       new Indexer[F] {
         def index(doc: FileDocument): F[Unit] = ref.update(_ :+ doc)
 
