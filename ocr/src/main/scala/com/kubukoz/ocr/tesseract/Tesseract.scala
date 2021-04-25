@@ -1,4 +1,4 @@
-package com.kubukoz.tesseract
+package com.kubukoz.ocr.tesseract
 
 import cats.Applicative
 import cats.effect.Concurrent
@@ -8,7 +8,7 @@ import cats.implicits._
 import com.kubukoz.process.ProcessRunner
 import org.typelevel.log4cats.Logger
 
-trait Tesseract[F[_]] {
+private[ocr] trait Tesseract[F[_]] {
   def decode(input: fs2.Stream[F, Byte]): F[String]
 }
 

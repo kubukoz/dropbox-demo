@@ -1,7 +1,6 @@
 package com.kubukoz.pipeline
 
 import cats.effect.kernel.Concurrent
-import cats.effect.kernel.Sync
 import cats.implicits._
 import com.kubukoz.imagesource.ImageSource
 import com.kubukoz.indexer.FileDocument
@@ -33,16 +32,5 @@ object IndexPipeline {
           }
 
     }
-
-  // note: this will be in CE3 Console soon
-  trait ErrorPrinter[F[_]] {
-    def printError(e: Throwable): F[Unit]
-  }
-
-  object ErrorPrinter {
-    def apply[F[_]](implicit F: ErrorPrinter[F]): ErrorPrinter[F] = F
-
-    def forAsyncConsole[F[_]: Sync]: ErrorPrinter[F] = e => Sync[F].delay(e.printStackTrace())
-  }
 
 }

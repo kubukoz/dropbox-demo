@@ -1,8 +1,8 @@
 package com.kubukoz.ocr
 
 import cats.effect.Concurrent
+import com.kubukoz.ocr.tesseract.Tesseract
 import com.kubukoz.process.ProcessRunner
-import com.kubukoz.tesseract.Tesseract
 import org.typelevel.log4cats.Logger
 
 trait OCR[F[_]] {

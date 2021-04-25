@@ -1,4 +1,4 @@
-package com.kubukoz.elasticsearch
+package com.kubukoz.indexer.elasticsearch
 
 import cats.ApplicativeThrow
 import cats.MonadThrow
@@ -40,7 +40,7 @@ import java.lang
 import util.chaining._
 
 // The ElasticSearch client
-trait ES[F[_]] {
+private[indexer] trait ES[F[_]] {
   def health: F[ClusterHealthStatus]
   def indexExists(name: String): F[Boolean]
   def createIndex(name: String, mappings: Json): F[Unit]

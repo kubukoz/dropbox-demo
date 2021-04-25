@@ -5,7 +5,7 @@ import cats.MonadThrow
 import cats.effect.kernel.Resource
 import cats.implicits._
 import ciris.ConfigValue
-import com.kubukoz.elasticsearch.ES
+import com.kubukoz.indexer.elasticsearch.ES
 import io.circe.Codec
 import io.circe.generic.semiauto._
 import io.circe.literal._
