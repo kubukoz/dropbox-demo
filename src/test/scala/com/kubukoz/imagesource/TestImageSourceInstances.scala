@@ -4,14 +4,14 @@ import cats.MonadThrow
 import cats.effect.implicits._
 import cats.effect.kernel.Resource
 import cats.implicits._
-import com.kubukoz.FiberLocal
 import com.kubukoz.shared.FileData
 import com.kubukoz.shared.Path
+import cats.effect.kernel.Ref
 
 object TestImageSourceInstances {
 
-  def instance[F[_]: FiberLocal.Make: MonadThrow]: F[ImageSource[F] with Ops[F]] =
-    FiberLocal.Make[F].of(List.empty[FileData[F]]).map { ref =>
+  def instance[F[_]: Ref.Make: MonadThrow]: F[ImageSource[F] with Ops[F]] =
+    Ref[F].of(List.empty[FileData[F]]).map { ref =>
       new ImageSource[F] with Ops[F] {
         def streamFolder(rawPath: Path): fs2.Stream[F, FileData[F]] = fs2
           .Stream
