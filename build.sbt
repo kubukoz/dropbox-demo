@@ -34,6 +34,7 @@ val compilerPlugins = List(
 val commonSettings = Seq(
   scalacOptions -= "-Xfatal-warnings",
   libraryDependencies ++= compilerPlugins,
+  testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
 )
 
 val shared = project.settings(
@@ -89,6 +90,7 @@ lazy val root = (project in file("."))
       "org.http4s" %% "http4s-blaze-server" % Versions.http4s,
       "org.typelevel" %% "log4cats-slf4j" % "2.0.0",
       "ch.qos.logback" % "logback-classic" % "1.2.3",
+      "com.disneystreaming" %% "weaver-cats" % "0.7.2" % Test,
     ),
   )
   .enablePlugins(JavaAppPackaging)
