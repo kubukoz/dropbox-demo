@@ -2,12 +2,12 @@ package com.kubukoz.indexer
 
 import cats.Monad
 import cats.implicits._
-import cats.effect.kernel.Ref
+import com.kubukoz.FiberRef
 
 object TestIndexerInstances {
 
-  def simple[F[_]: Ref.Make: Monad]: F[Indexer[F]] =
-    Ref[F].of(List.empty[FileDocument]).map { ref =>
+  def simple[F[_]: FiberRef.Make: Monad]: F[Indexer[F]] =
+    FiberRef[F].of(List.empty[FileDocument]).map { ref =>
       new Indexer[F] {
         def index(doc: FileDocument): F[Unit] = ref.update(_ :+ doc)
 
