@@ -94,5 +94,9 @@ lazy val root = (project in file("."))
     ),
   )
   .enablePlugins(JavaAppPackaging)
-  .dependsOn(imagesource, ocr, indexer)
+  .dependsOn(
+    imagesource % "compile->compile;test->test",
+    ocr % "compile->compile;test->test",
+    indexer % "compile->compile;test->test",
+  )
   .aggregate(shared, imagesource, ocr, indexer)

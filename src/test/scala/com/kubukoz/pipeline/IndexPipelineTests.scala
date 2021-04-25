@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.Resource
 import cats.effect.implicits._
 import cats.implicits._
-import com.kubukoz.ScopedIOSuite
+import com.kubukoz.FiberRef
 import com.kubukoz.files.FakeFile._
 import com.kubukoz.imagesource.ImageSource
 import com.kubukoz.imagesource.TestImageSourceInstances
@@ -13,10 +13,11 @@ import com.kubukoz.indexer.TestIndexerInstances
 import com.kubukoz.ocr.OCR
 import com.kubukoz.ocr.TestOCRInstances
 import com.kubukoz.shared.Path
+import com.kubukoz.weaverless.ScopedResourceIOSuite
 
 import scala.annotation.nowarn
 
-object IndexPipelineTests extends ScopedIOSuite {
+object IndexPipelineTests extends ScopedResourceIOSuite {
 
   final case class Resources(
     imageSource: ImageSource[IO] with TestImageSourceInstances.Ops[IO],
@@ -25,24 +26,25 @@ object IndexPipelineTests extends ScopedIOSuite {
     pipeline: IndexPipeline[IO],
   )
 
-  override type ScopedRes = Resources
+  type Res = Resources
 
-  def resources: Resource[IO, ScopedRes] = {
-    for {
-      implicit0(imageSource: ImageSource[IO] with TestImageSourceInstances.Ops[IO]) <- TestImageSourceInstances.instance[IO]
-      implicit0(indexer: Indexer[IO])                                               <- TestIndexerInstances.simple[IO]
-      implicit0(ocr: OCR[IO])                                                       <- TestOCRInstances.simple[IO].pure[IO]
+  def scopedResource: FiberRef.Make[IO] => Resource[IO, Res] = implicit locals =>
+    {
+      for {
+        implicit0(imageSource: ImageSource[IO] with TestImageSourceInstances.Ops[IO]) <- TestImageSourceInstances.instance[IO]
+        implicit0(indexer: Indexer[IO])                                               <- TestIndexerInstances.simple[IO]
+        implicit0(ocr: OCR[IO])                                                       <- TestOCRInstances.simple[IO].pure[IO]
 
-      pipeline = IndexPipeline.instance[IO]
-    } yield Resources(
-      imageSource,
-      indexer,
-      ocr,
-      pipeline,
-    ): @nowarn
-  }.toResource
+        pipeline = IndexPipeline.instance[IO]
+      } yield Resources(
+        imageSource,
+        indexer,
+        ocr,
+        pipeline,
+      ): @nowarn
+    }.toResource
 
-  test("single matching file").scoped { res =>
+  test("single matching file") { res =>
     import res._
 
     val file = fakeFile("hello world", "/hello/world")
@@ -56,7 +58,7 @@ object IndexPipelineTests extends ScopedIOSuite {
     }
   }
 
-  test("file not matching query").scoped { res =>
+  test("file not matching query") { res =>
     import res._
 
     val file = fakeFile("hello world", "/hello/world")
@@ -70,7 +72,7 @@ object IndexPipelineTests extends ScopedIOSuite {
     }
   }
 
-  test("many files matching").scoped { res =>
+  test("many files matching") { res =>
     import res._
 
     val count = 100
