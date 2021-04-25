@@ -5,20 +5,15 @@ import cats.effect.Resource
 import cats.effect.implicits._
 import cats.implicits._
 import com.kubukoz.ScopedIOSuite
+import com.kubukoz.files.FakeFile._
 import com.kubukoz.imagesource.ImageSource
 import com.kubukoz.imagesource.TestImageSourceInstances
-import com.kubukoz.indexer.FileDocument
 import com.kubukoz.indexer.Indexer
 import com.kubukoz.indexer.TestIndexerInstances
 import com.kubukoz.ocr.OCR
 import com.kubukoz.ocr.TestOCRInstances
-import com.kubukoz.shared.FileData
-import com.kubukoz.shared.FileMetadata
 import com.kubukoz.shared.Path
-import fs2.Pure
-import org.http4s.MediaType
 
-import java.nio.charset.StandardCharsets
 import scala.annotation.nowarn
 
 object IndexPipelineTests extends ScopedIOSuite {
@@ -47,26 +42,27 @@ object IndexPipelineTests extends ScopedIOSuite {
     ): @nowarn
   }.toResource
 
-  def fakeFile(content: String, path: String, contentType: MediaType = MediaType.image.png): FileData[Pure] =
-    FileData(fs2.Stream.emits(content.getBytes(StandardCharsets.UTF_8)), FileMetadata(path, contentType))
-
   test("single matching file").scoped { res =>
     import res._
 
+    val file = fakeFile("hello world", "/hello/world")
+
     {
-      imageSource.registerFile(fakeFile("hello world", "/hello/world")) *>
+      imageSource.registerFile(file.fileData) *>
         pipeline.run(Path("/hello")).compile.toList *>
         indexer.search("llo w").compile.toList
     }.map { results =>
-      expect(results == List(FileDocument("/hello/world", "hello world")))
+      expect(results == List(file.fileDocument))
     }
   }
 
   test("file not matching query").scoped { res =>
     import res._
 
+    val file = fakeFile("hello world", "/hello/world")
+
     {
-      imageSource.registerFile(fakeFile("hello world", "/hello/world")) *>
+      imageSource.registerFile(file.fileData) *>
         pipeline.run(Path("/hello")).compile.toList *>
         indexer.search("foo").compile.toList
     }.map { results =>
@@ -74,4 +70,24 @@ object IndexPipelineTests extends ScopedIOSuite {
     }
   }
 
+  test("many files matching").scoped { res =>
+    import res._
+
+    val count = 100
+
+    val files = (1 to count).toList.map { n =>
+      fakeFile(s"hello world $n", s"/hello/world_$n")
+    }
+
+    val createFiles = files.map(_.fileData).traverse(imageSource.registerFile)
+
+    {
+      createFiles *>
+        pipeline.run(Path("/hello")).compile.toList *>
+        indexer.search("world").compile.toList
+    }
+      .map { results =>
+        expect(results.toSet == files.map(_.fileDocument).toSet)
+      }
+  }
 }
