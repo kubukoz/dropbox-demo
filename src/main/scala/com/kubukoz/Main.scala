@@ -81,9 +81,10 @@ object Application {
       implicit0(imageSource: ImageSource[F]) <- ImageSource.module[F](config.imageSource).toResource
       implicit0(indexer: Indexer[F])         <- Indexer.module[F](config.indexer)
       implicit0(ocr: OCR[F])                 <- OCR.module[F].pure[Resource[F, *]]
-      implicit0(search: Search[F])           <- Search.instance[F](serverInfo.get).pure[Resource[F, *]]
       processQueue                           <- ProcessQueue.instance(config.processQueue)
       implicit0(index: Index[F])             <- Index.instance[F](processQueue).pure[Resource[F, *]]
+      implicit0(download: Download[F])       <- Download.instance[F].pure[Resource[F, *]]
+      implicit0(search: Search[F])           <- Search.instance[F](serverInfo.get).pure[Resource[F, *]]
       _                                      <- makeServer(Routing.routes[F], serverInfo)
     } yield ()
   }.useForever

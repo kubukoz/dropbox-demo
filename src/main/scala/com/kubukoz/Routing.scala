@@ -1,11 +1,13 @@
 package com.kubukoz
 
+import cats.Monad
 import cats.effect.MonadCancelThrow
 import cats.effect.kernel.MonadCancel
-import cats.effect.kernel.Resource
 import cats.implicits._
 import com.kubukoz.imagesource.ImageSource
 import com.kubukoz.index.Index
+import com.kubukoz.shared.FileData
+import com.kubukoz.shared.Path
 import io.circe.Codec
 import io.circe.generic.semiauto._
 import org.http4s.HttpRoutes
@@ -13,9 +15,6 @@ import org.http4s.Uri
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.`Content-Type`
-import com.kubukoz.shared.Path
-import com.kubukoz.shared.FileMetadata
-import com.kubukoz.shared.FileData
 
 final case class IndexRequest(path: String)
 
@@ -31,7 +30,7 @@ object SearchResult {
 
 object Routing {
 
-  def routes[F[_]: Index: Search: ImageSource: MonadCancelThrow: JsonDecoder]: HttpRoutes[F] = {
+  def routes[F[_]: Index: Search: Download: JsonDecoder: Monad]: HttpRoutes[F] = {
     object dsl extends Http4sDsl[F]
     import dsl._
     import io.circe.syntax._
@@ -70,7 +69,7 @@ trait Download[F[_]] {
 object Download {
   def apply[F[_]](implicit F: Download[F]): Download[F] = F
 
-  implicit def instance[F[_]: MonadCancelThrow: ImageSource]: Download[F] = new Download[F] {
+  def instance[F[_]: MonadCancelThrow: ImageSource]: Download[F] = new Download[F] {
 
     def download[A](path: Path)(useResources: FileData[F] => F[A]): F[A] =
       MonadCancel[F].uncancelable { poll =>
