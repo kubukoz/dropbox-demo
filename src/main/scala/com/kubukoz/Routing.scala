@@ -5,7 +5,6 @@ import cats.effect.kernel.MonadCancel
 import cats.effect.kernel.Resource
 import cats.implicits._
 import com.kubukoz.imagesource.ImageSource
-import com.kubukoz.indexer.Indexer
 import com.kubukoz.pipeline.IndexingQueue
 import com.kubukoz.shared.Path
 import io.circe.Codec
@@ -15,7 +14,6 @@ import org.http4s.Uri
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.`Content-Type`
-import org.http4s.server.Server
 
 final case class IndexRequest(path: String)
 
