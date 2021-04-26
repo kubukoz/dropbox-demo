@@ -31,9 +31,8 @@ object SearchResult {
 
 object Routing {
 
-  def routes[F[_]: MonadCancelThrow: JsonDecoder: Indexer: ImageSource](
-    indexingQueue: IndexingQueue[F, Path],
-    serverInfo: F[Server],
+  def routes[F[_]: MonadCancelThrow: JsonDecoder: Search: ImageSource](
+    indexingQueue: IndexingQueue[F, Path]
   ): HttpRoutes[F] = {
     object dsl extends Http4sDsl[F]
     import dsl._
@@ -48,18 +47,7 @@ object Routing {
         } *> Accepted()
 
       case GET -> Root / "search" :? SearchQuery(query) =>
-        serverInfo.flatMap { server =>
-          Ok {
-            Indexer[F]
-              .search(query)
-              .map { fd =>
-                val viewUrl = server.baseUri / "view" / fd.fileName
-
-                SearchResult(imageUrl = viewUrl, thumbnailUrl = viewUrl, content = fd.content)
-              }
-              .map(_.asJson)
-          }
-        }
+        Ok(Search[F].search(query).map(_.asJson))
 
       case GET -> "view" /: rest =>
         val getMetadataAndStream =
