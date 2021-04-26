@@ -1,4 +1,4 @@
-package com.kubukoz.dropbox
+package com.kubukoz.imagesource.dropbox
 
 //todo: some parameters somewhere might be redundant
 import cats.data.NonEmptyList

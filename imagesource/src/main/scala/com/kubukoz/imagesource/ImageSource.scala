@@ -8,10 +8,10 @@ import cats.effect.kernel.Resource
 import cats.implicits._
 import ciris.ConfigValue
 import ciris.Secret
-import com.kubukoz.dropbox
-import com.kubukoz.dropbox.Dropbox
-import com.kubukoz.dropbox.FileDownload
-import com.kubukoz.dropbox.Metadata
+import com.kubukoz.imagesource.dropbox
+import com.kubukoz.imagesource.dropbox.Dropbox
+import com.kubukoz.imagesource.dropbox.FileDownload
+import com.kubukoz.imagesource.dropbox.Metadata
 import com.kubukoz.shared.FileData
 import com.kubukoz.shared.FileMetadata
 import com.kubukoz.shared.Path

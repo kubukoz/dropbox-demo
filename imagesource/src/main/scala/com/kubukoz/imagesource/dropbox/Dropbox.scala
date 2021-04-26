@@ -1,4 +1,4 @@
-package com.kubukoz.dropbox
+package com.kubukoz.imagesource.dropbox
 
 import cats.Functor
 import cats.MonadThrow
@@ -7,7 +7,7 @@ import cats.effect.implicits._
 import cats.effect.kernel.Resource
 import cats.implicits._
 import ciris.Secret
-import com.kubukoz.dropbox
+import com.kubukoz.imagesource.dropbox
 import fs2.Stream
 import io.circe.Decoder
 import io.circe.Printer
@@ -32,7 +32,7 @@ import scala.concurrent.duration._
 
 import util.chaining._
 
-trait Dropbox[F[_]] {
+private[imagesource] trait Dropbox[F[_]] {
   def listFolder(path: Path, recursive: Boolean): F[Paginable[Metadata]]
   def listFolderContinue(cursor: String): F[Paginable[Metadata]]
   def download(filePath: Path): Resource[F, FileDownload[F]]
