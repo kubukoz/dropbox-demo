@@ -14,7 +14,6 @@ import com.kubukoz.imagesource.ImageSource
 import com.kubukoz.indexer.Indexer
 import com.kubukoz.ocr.OCR
 import com.kubukoz.pipeline.IndexPipeline
-import com.kubukoz.pipeline.IndexingQueue
 import org.http4s.HttpRoutes
 import org.http4s.client
 import org.http4s.client.Client
@@ -26,6 +25,7 @@ import org.http4s.server.middleware.CORS
 import org.http4s.server.middleware.{Logger => ServerLogger}
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import com.kubukoz.pipeline.ProcessQueue
 
 object Main extends IOApp.Simple {
 
@@ -41,12 +41,12 @@ object Main extends IOApp.Simple {
 // also, probably a UI form to index a path would be nice, and maybe an endpoint to see the progress (which path, how many files indexed, maybe running time), checking if a path was already indexed
 // lots of possibilities
 object Application {
-  final case class Config(indexer: Indexer.Config, imageSource: ImageSource.Config, indexingQueue: IndexingQueue.Config)
+  final case class Config(indexer: Indexer.Config, imageSource: ImageSource.Config, processQueue: ProcessQueue.Config)
 
   def config[F[_]: ApplicativeThrow]: ConfigValue[F, Config] = (
     Indexer.config[F],
     ImageSource.config[F],
-    IndexingQueue.config[F],
+    ProcessQueue.config[F],
   ).parMapN(Config)
 
   def run[F[_]: Async](config: Config): F[Nothing] = {
@@ -82,9 +82,9 @@ object Application {
       implicit0(indexer: Indexer[F])         <- Indexer.module[F](config.indexer)
       implicit0(ocr: OCR[F])                 <- OCR.module[F].pure[Resource[F, *]]
       implicit0(search: Search[F])           <- Search.instance[F](serverInfo.get).pure[Resource[F, *]]
-      pipeline                               <- IndexPipeline.instance[F].pure[Resource[F, *]]
-      indexingQueue                          <- IndexingQueue.instance(config.indexingQueue, pipeline.run)
-      _                                      <- makeServer(Routing.routes[F](indexingQueue), serverInfo)
+      processQueue                           <- ProcessQueue.instance(config.processQueue)
+      implicit0(pipeline: IndexPipeline[F])  <- IndexPipeline.instance[F](processQueue).pure[Resource[F, *]]
+      _                                      <- makeServer(Routing.routes[F], serverInfo)
     } yield ()
   }.useForever
 

@@ -34,8 +34,9 @@ object IndexPipelineTests extends ScopedResourceIOSuite {
         implicit0(imageSource: ImageSource[IO] with TestImageSourceInstances.Ops[IO]) <- TestImageSourceInstances.instance[IO]
         implicit0(indexer: Indexer[IO])                                               <- TestIndexerInstances.simple[IO]
         implicit0(ocr: OCR[IO])                                                       <- TestOCRInstances.simple[IO].pure[IO]
+        pq = TestProcessQueue.synchronous[IO]
 
-        pipeline = IndexPipeline.instance[IO]
+        pipeline = IndexPipeline.instance[IO](pq)
       } yield Resources(
         imageSource,
         indexer,
@@ -51,7 +52,7 @@ object IndexPipelineTests extends ScopedResourceIOSuite {
 
     {
       imageSource.registerFile(file.fileData) *>
-        pipeline.run(Path("/hello")).compile.toList *>
+        pipeline.schedule(Path("/hello")) *>
         indexer.search("llo w").compile.toList
     }.map { results =>
       expect(results == List(file.fileDocument))
@@ -65,7 +66,7 @@ object IndexPipelineTests extends ScopedResourceIOSuite {
 
     {
       imageSource.registerFile(file.fileData) *>
-        pipeline.run(Path("/hello")).compile.toList *>
+        pipeline.schedule(Path("/hello")) *>
         indexer.search("foo").compile.toList
     }.map { results =>
       expect(results.isEmpty)
@@ -85,7 +86,7 @@ object IndexPipelineTests extends ScopedResourceIOSuite {
 
     {
       createFiles *>
-        pipeline.run(Path("/hello")).compile.toList *>
+        pipeline.schedule(Path("/hello")) *>
         indexer.search("world").compile.toList
     }
       .map { results =>
