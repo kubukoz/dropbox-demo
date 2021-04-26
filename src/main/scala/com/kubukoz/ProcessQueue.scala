@@ -51,7 +51,7 @@ object ProcessQueue {
         .compile
         .drain
         .background
-        .preAllocate(Logger[F].info("Starting indexing queue processor in the background"))
+        .preAllocate(Logger[F].info("Starting processing queue in the background"))
         .as(q)
     }
 
