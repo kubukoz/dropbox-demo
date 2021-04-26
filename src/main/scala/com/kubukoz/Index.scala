@@ -1,4 +1,4 @@
-package com.kubukoz.index
+package com.kubukoz
 
 import cats.effect.kernel.Concurrent
 import cats.implicits._
@@ -7,7 +7,6 @@ import com.kubukoz.indexer.FileDocument
 import com.kubukoz.indexer.Indexer
 import com.kubukoz.ocr.OCR
 import com.kubukoz.shared.Path
-import com.kubukoz.ProcessQueue
 
 trait Index[F[_]] {
   def schedule(path: Path): F[Unit]

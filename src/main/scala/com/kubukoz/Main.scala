@@ -13,7 +13,6 @@ import ciris.ConfigValue
 import com.kubukoz.imagesource.ImageSource
 import com.kubukoz.indexer.Indexer
 import com.kubukoz.ocr.OCR
-import com.kubukoz.index.Index
 import org.http4s.HttpRoutes
 import org.http4s.client
 import org.http4s.client.Client
@@ -63,7 +62,7 @@ object Application {
         .eval(Async[F].executionContext)
         .flatMap {
           BlazeServerBuilder[F](_)
-            .bindHttp(4000, "0.0.0.0")
+            .bindHttp(port = 4000, host = "0.0.0.0")
             .withHttpApp(
               ServerLogger
                 .httpRoutes(logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String)))(

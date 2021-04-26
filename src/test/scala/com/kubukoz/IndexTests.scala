@@ -1,11 +1,9 @@
-package com.kubukoz.index
+package com.kubukoz
 
 import cats.effect.IO
 import cats.effect.Resource
 import cats.effect.implicits._
 import cats.implicits._
-import com.kubukoz.FiberRef
-import com.kubukoz.TestProcessQueue
 import com.kubukoz.files.FakeFile._
 import com.kubukoz.imagesource.ImageSource
 import com.kubukoz.imagesource.TestImageSourceInstances
