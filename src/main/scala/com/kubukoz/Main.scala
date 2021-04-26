@@ -13,7 +13,7 @@ import ciris.ConfigValue
 import com.kubukoz.imagesource.ImageSource
 import com.kubukoz.indexer.Indexer
 import com.kubukoz.ocr.OCR
-import com.kubukoz.pipeline.IndexPipeline
+import com.kubukoz.index.Index
 import org.http4s.HttpRoutes
 import org.http4s.client
 import org.http4s.client.Client
@@ -25,7 +25,7 @@ import org.http4s.server.middleware.CORS
 import org.http4s.server.middleware.{Logger => ServerLogger}
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import com.kubukoz.pipeline.ProcessQueue
+import com.kubukoz.ProcessQueue
 
 object Main extends IOApp.Simple {
 
@@ -83,7 +83,7 @@ object Application {
       implicit0(ocr: OCR[F])                 <- OCR.module[F].pure[Resource[F, *]]
       implicit0(search: Search[F])           <- Search.instance[F](serverInfo.get).pure[Resource[F, *]]
       processQueue                           <- ProcessQueue.instance(config.processQueue)
-      implicit0(pipeline: IndexPipeline[F])  <- IndexPipeline.instance[F](processQueue).pure[Resource[F, *]]
+      implicit0(index: Index[F])             <- Index.instance[F](processQueue).pure[Resource[F, *]]
       _                                      <- makeServer(Routing.routes[F], serverInfo)
     } yield ()
   }.useForever

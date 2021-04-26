@@ -1,4 +1,4 @@
-package com.kubukoz.pipeline
+package com.kubukoz
 
 import cats.effect.kernel.GenConcurrent
 import cats.effect.std.Queue
@@ -24,7 +24,7 @@ object ProcessQueue {
 
   def config[F[_]]: ConfigValue[F, Config] = {
     import ciris._
-    env("INDEXING_QUEUE_CAPACITY").as[Int].default(10).map(Config)
+    env("PROCESS_QUEUE_CAPACITY").as[Int].default(10).map(Config)
   }
 
   final case class Request[F[_], A](input: A, process: A => Stream[F, Either[Throwable, Unit]])

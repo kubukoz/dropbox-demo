@@ -1,4 +1,4 @@
-package com.kubukoz.pipeline
+package com.kubukoz
 
 object TestProcessQueue {
 

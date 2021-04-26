@@ -5,7 +5,7 @@ import cats.effect.kernel.MonadCancel
 import cats.effect.kernel.Resource
 import cats.implicits._
 import com.kubukoz.imagesource.ImageSource
-import com.kubukoz.pipeline.IndexPipeline
+import com.kubukoz.index.Index
 import io.circe.Codec
 import io.circe.generic.semiauto._
 import org.http4s.HttpRoutes
@@ -28,7 +28,7 @@ object SearchResult {
 
 object Routing {
 
-  def routes[F[_]: IndexPipeline: Search: ImageSource: MonadCancelThrow: JsonDecoder]: HttpRoutes[F] = {
+  def routes[F[_]: Index: Search: ImageSource: MonadCancelThrow: JsonDecoder]: HttpRoutes[F] = {
     object dsl extends Http4sDsl[F]
     import dsl._
     import io.circe.syntax._
@@ -38,7 +38,7 @@ object Routing {
     HttpRoutes.of {
       case req @ POST -> Root / "index" =>
         req.asJsonDecode[IndexRequest].flatMap { body =>
-          IndexPipeline[F].schedule(shared.Path(body.path))
+          Index[F].schedule(shared.Path(body.path))
         } *> Accepted()
 
       case GET -> Root / "search" :? SearchQuery(query) =>

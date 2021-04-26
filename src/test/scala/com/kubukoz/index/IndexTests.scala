@@ -1,10 +1,11 @@
-package com.kubukoz.pipeline
+package com.kubukoz.index
 
 import cats.effect.IO
 import cats.effect.Resource
 import cats.effect.implicits._
 import cats.implicits._
 import com.kubukoz.FiberRef
+import com.kubukoz.TestProcessQueue
 import com.kubukoz.files.FakeFile._
 import com.kubukoz.imagesource.ImageSource
 import com.kubukoz.imagesource.TestImageSourceInstances
@@ -17,13 +18,13 @@ import com.kubukoz.weaverless.ScopedResourceIOSuite
 
 import scala.annotation.nowarn
 
-object IndexPipelineTests extends ScopedResourceIOSuite {
+object IndexTests extends ScopedResourceIOSuite {
 
   final case class Resources(
     imageSource: ImageSource[IO] with TestImageSourceInstances.Ops[IO],
     indexer: Indexer[IO],
     ocr: OCR[IO],
-    pipeline: IndexPipeline[IO],
+    index: Index[IO],
   )
 
   type Res = Resources
@@ -36,12 +37,12 @@ object IndexPipelineTests extends ScopedResourceIOSuite {
         implicit0(ocr: OCR[IO])                                                       <- TestOCRInstances.simple[IO].pure[IO]
         pq = TestProcessQueue.synchronous[IO]
 
-        pipeline = IndexPipeline.instance[IO](pq)
+        index = Index.instance[IO](pq)
       } yield Resources(
         imageSource,
         indexer,
         ocr,
-        pipeline,
+        index,
       ): @nowarn
     }.toResource
 
@@ -52,7 +53,7 @@ object IndexPipelineTests extends ScopedResourceIOSuite {
 
     {
       imageSource.registerFile(file.fileData) *>
-        pipeline.schedule(Path("/hello")) *>
+        index.schedule(Path("/hello")) *>
         indexer.search("llo w").compile.toList
     }.map { results =>
       expect(results == List(file.fileDocument))
@@ -66,7 +67,7 @@ object IndexPipelineTests extends ScopedResourceIOSuite {
 
     {
       imageSource.registerFile(file.fileData) *>
-        pipeline.schedule(Path("/hello")) *>
+        index.schedule(Path("/hello")) *>
         indexer.search("foo").compile.toList
     }.map { results =>
       expect(results.isEmpty)
@@ -86,7 +87,7 @@ object IndexPipelineTests extends ScopedResourceIOSuite {
 
     {
       createFiles *>
-        pipeline.schedule(Path("/hello")) *>
+        index.schedule(Path("/hello")) *>
         indexer.search("world").compile.toList
     }
       .map { results =>

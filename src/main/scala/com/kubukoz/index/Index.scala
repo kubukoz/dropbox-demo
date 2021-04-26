@@ -1,4 +1,4 @@
-package com.kubukoz.pipeline
+package com.kubukoz.index
 
 import cats.effect.kernel.Concurrent
 import cats.implicits._
@@ -7,16 +7,17 @@ import com.kubukoz.indexer.FileDocument
 import com.kubukoz.indexer.Indexer
 import com.kubukoz.ocr.OCR
 import com.kubukoz.shared.Path
+import com.kubukoz.ProcessQueue
 
-trait IndexPipeline[F[_]] {
+trait Index[F[_]] {
   def schedule(path: Path): F[Unit]
 }
 
-object IndexPipeline {
-  def apply[F[_]](implicit F: IndexPipeline[F]): IndexPipeline[F] = F
+object Index {
+  def apply[F[_]](implicit F: Index[F]): Index[F] = F
 
-  def instance[F[_]: ImageSource: OCR: Indexer: Concurrent](pq: ProcessQueue[F]): IndexPipeline[F] =
-    new IndexPipeline[F] {
+  def instance[F[_]: ImageSource: OCR: Indexer: Concurrent](pq: ProcessQueue[F]): Index[F] =
+    new Index[F] {
 
       def schedule(path: Path): F[Unit] =
         pq.offer(path) {
