@@ -19,7 +19,7 @@ object OCR {
   }
 
   private def tesseractInstance[F[_]: Tesseract]: OCR[F] = new OCR[F] {
-    def decodeText(file: fs2.Stream[F, Byte]): F[String] = Tesseract[F].decode(file)
+    def decodeText(file: fs2.Stream[F, Byte]): F[String] = Tesseract[F].decode(file, List("pol", "eng"))
   }
 
 }

@@ -9,7 +9,7 @@ import com.kubukoz.process.ProcessRunner
 import org.typelevel.log4cats.Logger
 
 private[ocr] trait Tesseract[F[_]] {
-  def decode(input: fs2.Stream[F, Byte]): F[String]
+  def decode(input: fs2.Stream[F, Byte], languages: List[String]): F[String]
 }
 
 object Tesseract {
@@ -17,9 +17,9 @@ object Tesseract {
 
   def instance[F[_]: ProcessRunner: Logger: Concurrent](implicit SC: fs2.Compiler[F, F]): Tesseract[F] = new Tesseract[F] {
 
-    def decode(input: fs2.Stream[F, Byte]): F[String] =
+    def decode(input: fs2.Stream[F, Byte], languages: List[String]): F[String] =
       ProcessRunner[F]
-        .run(List("bash", "-c", "OMP_THREAD_LIMIT=1 tesseract stdin stdout -l pol+eng"))
+        .run(List("bash", "-c", s"OMP_THREAD_LIMIT=1 tesseract stdin stdout -l ${languages.mkString("+")}"))
         .use { proc =>
           val readOutput = proc.outputUtf8.compile.string.flatTap { result =>
             Logger[F].debug(s"Decoded file: $result")
