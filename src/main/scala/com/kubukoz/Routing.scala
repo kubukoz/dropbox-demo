@@ -13,6 +13,9 @@ import org.http4s.Uri
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.`Content-Type`
+import com.kubukoz.shared.Path
+import com.kubukoz.shared.FileMetadata
+import com.kubukoz.shared.FileData
 
 final case class IndexRequest(path: String)
 
@@ -45,27 +48,43 @@ object Routing {
         Ok(Search[F].search(query).map(_.asJson))
 
       case GET -> "view" /: rest =>
-        val getMetadataAndStream =
-          //todo magic path logic...
-          ImageSource[F].download(shared.Path(rest.segments.map(_.decoded()).mkString("/")))
+        val path = shared.Path(rest.segments.map(_.decoded()).mkString("/"))
 
-        //todo might be prone to race conditions
         //todo caching etc. would be nice
         //also content length
-        MonadCancel[F].uncancelable { poll =>
-          // We need the value of this resource later
-          // so we cancelably-allocate it, then hope for the best (that any cancelations on the request will shutdown this resource).
-          poll(getMetadataAndStream.allocated)
-            .map { case (fd, cancel) =>
-              fd.metadata -> Resource.pure(fd).onFinalize(cancel)
-            }
-            .flatMap { case (meta, file) =>
-              // probably don't need to pass poll anywhere here, since it's already out of scope...
-              Ok(fs2.Stream.resource(file).flatMap(_.content)).map(_.withContentType(`Content-Type`(meta.mediaType)))
-            }
-
+        Download[F].download(path) { fd =>
+          Ok(fd.content).map(_.withContentType(`Content-Type`(fd.metadata.mediaType)))
         }
     }
+  }
+
+}
+
+trait Download[F[_]] {
+  // This is *almost* a Resource, with the exception that the resource isn't cleaned up automatically after useResources completes.
+  // The responsibility of closing the resource is in the hands of `useResources`.
+  // This is due to http4s's current shape of a route - this might change in the future to make this pattern easier and safer to use.
+  def download[A](path: Path)(toResponse: FileData[F] => F[A]): F[A]
+}
+
+object Download {
+  def apply[F[_]](implicit F: Download[F]): Download[F] = F
+
+  implicit def instance[F[_]: MonadCancelThrow: ImageSource]: Download[F] = new Download[F] {
+
+    def download[A](path: Path)(useResources: FileData[F] => F[A]): F[A] =
+      MonadCancel[F].uncancelable { poll =>
+        // We need the value of this resource later
+        // so we cancelably-allocate it, then hope for the best (cancelations on the request will shutdown this resource).
+        poll(ImageSource[F].download(path).allocated)
+          .flatMap { case (fd, cleanup) =>
+            val fdUpdated = fd.copy(content = fd.content.onFinalize(cleanup))
+
+            useResources(fdUpdated)
+          }
+
+      }
+
   }
 
 }
