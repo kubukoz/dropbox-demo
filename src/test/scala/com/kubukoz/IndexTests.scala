@@ -52,7 +52,7 @@ object IndexTests extends ScopedResourceIOSuite {
     {
       imageSource.registerFile(file.fileData) *>
         index.schedule(Path("/hello")) *>
-        indexer.search("llo w").compile.toList
+        indexer.search("hello").compile.toList
     }.map { results =>
       expect(results == List(file.fileDocument))
     }

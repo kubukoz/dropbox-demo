@@ -10,6 +10,7 @@ import cats.effect.kernel.DeferredSink
 import cats.effect.kernel.Resource
 import cats.implicits._
 import ciris.ConfigValue
+import com.kubukoz.ProcessQueue
 import com.kubukoz.imagesource.ImageSource
 import com.kubukoz.indexer.Indexer
 import com.kubukoz.ocr.OCR
@@ -24,7 +25,6 @@ import org.http4s.server.middleware.CORS
 import org.http4s.server.middleware.{Logger => ServerLogger}
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import com.kubukoz.ProcessQueue
 
 object Main extends IOApp.Simple {
 
@@ -36,9 +36,6 @@ object Main extends IOApp.Simple {
 
 }
 
-// todo! checking if a file is already decoded and indexed, before trying to decode.
-// also, probably a UI form to index a path would be nice, and maybe an endpoint to see the progress (which path, how many files indexed, maybe running time), checking if a path was already indexed
-// lots of possibilities
 object Application {
   final case class Config(indexer: Indexer.Config, imageSource: ImageSource.Config, processQueue: ProcessQueue.Config)
 
@@ -51,13 +48,16 @@ object Application {
   def run[F[_]: Async](config: Config): F[Nothing] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 
-    val makeClient =
+    val makeClient: Resource[F, Client[F]] = {
+      val clientLogger = client.middleware.Logger[F](logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String))) _
+
       Resource
         .eval(Async[F].executionContext)
         .flatMap(BlazeClientBuilder[F](_).resource)
-        .map(client.middleware.Logger[F](logHeaders = true, logBody = false, logAction = Some(logger.debug(_: String))))
+        .map(clientLogger)
+    }
 
-    def makeServer(routes: HttpRoutes[F], serverInfo: DeferredSink[F, Server]) =
+    def makeServer(routes: HttpRoutes[F], serverInfo: DeferredSink[F, Server]): Resource[F, Server] =
       Resource
         .eval(Async[F].executionContext)
         .flatMap {
