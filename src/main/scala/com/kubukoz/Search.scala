@@ -1,6 +1,7 @@
 package com.kubukoz
 
 import com.kubukoz.indexer.Indexer
+import com.kubukoz.shared.SearchResult
 import org.http4s.server.Server
 
 trait Search[F[_]] {

@@ -88,6 +88,7 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       "org.http4s" %% "http4s-blaze-client" % Versions.http4s,
       "org.http4s" %% "http4s-blaze-server" % Versions.http4s,
+      "io.scalaland" %% "chimney" % "0.6.0",
       "org.typelevel" %% "log4cats-slf4j" % "2.0.0",
       "ch.qos.logback" % "logback-classic" % "1.2.3",
       "com.disneystreaming" %% "weaver-cats" % "0.7.2" % Test,
