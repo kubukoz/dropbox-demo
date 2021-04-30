@@ -23,7 +23,8 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object Main extends IOApp.Simple {
 
-  implicit val logger: SelfAwareStructuredLogger[IO] = Slf4jLogger.getLogger
+  implicit val logger: SelfAwareStructuredLogger[IO] =
+    Slf4jLogger.getLogger
 
   val run: IO[Unit] =
     Application
