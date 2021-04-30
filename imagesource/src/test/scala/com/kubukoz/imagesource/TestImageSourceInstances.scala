@@ -27,13 +27,13 @@ object TestImageSourceInstances {
             )
             .toResource
 
-        def registerFile(data: FileData[F]): F[Unit] =
+        def uploadFile(data: FileData[F]): F[Unit] =
           ref.update(_ :+ data)
       }
     }
 
   trait Ops[F[_]] {
-    def registerFile(data: FileData[F]): F[Unit]
+    def uploadFile(data: FileData[F]): F[Unit]
   }
 
   object Ops {

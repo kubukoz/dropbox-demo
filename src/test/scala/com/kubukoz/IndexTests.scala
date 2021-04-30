@@ -50,7 +50,7 @@ object IndexTests extends ScopedResourceIOSuite {
     val file = fakeFile("hello world", "/hello/world")
 
     {
-      imageSource.registerFile(file.fileData) *>
+      imageSource.uploadFile(file.fileData) *>
         index.schedule(Path("/hello")) *>
         indexer.search("hello").compile.toList
     }.map { results =>
@@ -63,7 +63,7 @@ object IndexTests extends ScopedResourceIOSuite {
     val file = fakeFile("hello world", "/hello/world")
 
     {
-      imageSource.registerFile(file.fileData) *>
+      imageSource.uploadFile(file.fileData) *>
         index.schedule(Path("/hello")) *>
         indexer.search("foo").compile.toList
     }.map { results =>
@@ -80,7 +80,7 @@ object IndexTests extends ScopedResourceIOSuite {
       fakeFile(s"hello world $n", s"/hello/world_$n")
     }
 
-    val createFiles = files.map(_.fileData).traverse(imageSource.registerFile)
+    val createFiles = files.map(_.fileData).traverse(imageSource.uploadFile)
 
     {
       createFiles *>
