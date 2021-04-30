@@ -1,13 +1,16 @@
 package com.kubukoz.ocr
 
+import cats.Functor
 import cats.effect.Concurrent
+import cats.implicits._
 import ciris.ConfigValue
 import com.kubukoz.ocr.tesseract.Tesseract
 import com.kubukoz.process.ProcessRunner
+import com.kubukoz.shared.DecodedText
 import org.typelevel.log4cats.Logger
 
 trait OCR[F[_]] {
-  def decodeText(file: fs2.Stream[F, Byte]): F[String]
+  def decodeText(file: fs2.Stream[F, Byte]): F[DecodedText]
 }
 
 object OCR {
@@ -31,9 +34,9 @@ object OCR {
       .map(Config)
   }
 
-  private[ocr] def tesseractInstance[F[_]: Tesseract](config: Config): OCR[F] = new OCR[F] {
-    def decodeText(file: fs2.Stream[F, Byte]): F[String] =
-      Tesseract[F].decode(file, config.languages)
+  private[ocr] def tesseractInstance[F[_]: Tesseract: Functor](config: Config): OCR[F] = new OCR[F] {
+    def decodeText(file: fs2.Stream[F, Byte]): F[DecodedText] =
+      Tesseract[F].decode(file, config.languages).map(DecodedText(_))
   }
 
 }

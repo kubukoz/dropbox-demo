@@ -26,7 +26,7 @@ object Index {
               OCR[F]
                 .decodeText(data.content)
                 .flatMap { decoded =>
-                  Indexer[F].index(FileDocument(data.metadata.path, decoded)).unlessA(decoded.strip.isEmpty)
+                  Indexer[F].index(FileDocument(data.metadata.path, decoded.text)).unlessA(decoded.text.strip.isEmpty)
                 }
                 .attempt
             }

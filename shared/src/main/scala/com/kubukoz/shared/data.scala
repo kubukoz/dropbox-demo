@@ -7,3 +7,5 @@ final case class FileData[+F[_]](content: Stream[F, Byte], metadata: FileMetadat
 final case class FileMetadata(path: String, mediaType: MediaType)
 
 final case class Path(value: String)
+
+final case class DecodedText(text: String)
