@@ -41,6 +41,7 @@ object Application {
     imageSource: ImageSource.Config,
     processQueue: ProcessQueue.Config,
     ocr: OCR.Config,
+    http: HttpServer.Config,
   )
 
   def config[F[_]: ApplicativeThrow]: ConfigValue[F, Config] = (
@@ -48,6 +49,7 @@ object Application {
     ImageSource.config[F],
     ProcessQueue.config[F],
     OCR.config[F],
+    HttpServer.config[F],
   ).parMapN(Config)
 
   def run[F[_]: Async: Logger](config: Config): Resource[F, Server] =
@@ -61,7 +63,7 @@ object Application {
       implicit0(index: Index[F])             <- Index.instance[F](processQueue).pure[Resource[F, *]]
       implicit0(download: Download[F])       <- Download.instance[F].pure[Resource[F, *]]
       implicit0(search: Search[F])           <- Search.instance[F](serverInfo.get).pure[Resource[F, *]]
-      server                                 <- HttpServer.instance[F].evalTap(serverInfo.complete)
+      server                                 <- HttpServer.instance[F](config.http).evalTap(serverInfo.complete)
     } yield server
 
 }

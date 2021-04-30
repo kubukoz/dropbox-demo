@@ -10,7 +10,14 @@ import org.typelevel.log4cats.Logger
 object HttpClient {
 
   def instance[F[_]: Async: Logger]: Resource[F, Client[F]] = {
-    val clientLogger = client.middleware.Logger[F](logHeaders = true, logBody = false, logAction = Some(Logger[F].debug(_: String))) _
+
+    val clientLogger: Client[F] => Client[F] = client
+      .middleware
+      .Logger[F](
+        logHeaders = true,
+        logBody = false,
+        logAction = Some(Logger[F].debug(_: String)),
+      ) _
 
     Resource
       .eval(Async[F].executionContext)

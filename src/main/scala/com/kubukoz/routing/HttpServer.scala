@@ -4,6 +4,7 @@ import cats.Monad
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.implicits._
+import ciris.ConfigValue
 import com.kubukoz.Download
 import com.kubukoz.Index
 import com.kubukoz.Search
@@ -25,15 +26,26 @@ import org.typelevel.log4cats.Logger
 
 object HttpServer {
 
-  def instance[F[_]: Index: Search: Download: Async: Logger]: Resource[F, Server] =
-    makeServer(routes[F])
+  def instance[F[_]: Index: Search: Download: Async: Logger](config: Config): Resource[F, Server] =
+    makeServer(routes[F], config)
 
-  private[routing] def makeServer[F[_]: Async: Logger](routes: HttpRoutes[F]): Resource[F, Server] =
+  def config[F[_]]: ConfigValue[F, Config] = {
+    import ciris._
+
+    (
+      env("HTTP_PORT").as[Int].default(4000),
+      env("HTTP_HOST").default("localhost"),
+    ).parMapN(Config)
+  }
+
+  final case class Config(port: Int, host: String)
+
+  private[routing] def makeServer[F[_]: Async: Logger](routes: HttpRoutes[F], config: Config): Resource[F, Server] =
     Resource
       .eval(Async[F].executionContext)
       .flatMap {
         BlazeServerBuilder[F](_)
-          .bindHttp(port = 4000, host = "0.0.0.0")
+          .bindHttp(port = config.port, host = config.host)
           .withHttpApp(
             ServerLogger
               .httpRoutes(logHeaders = true, logBody = false, logAction = Some(Logger[F].debug(_: String)))(
