@@ -60,7 +60,6 @@ object IndexTests extends ScopedResourceIOSuite {
 
   test("file not matching query") { res =>
     import res._
-
     val file = fakeFile("hello world", "/hello/world")
 
     {

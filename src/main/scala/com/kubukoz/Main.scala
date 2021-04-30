@@ -37,12 +37,19 @@ object Main extends IOApp.Simple {
 }
 
 object Application {
-  final case class Config(indexer: Indexer.Config, imageSource: ImageSource.Config, processQueue: ProcessQueue.Config)
+
+  final case class Config(
+    indexer: Indexer.Config,
+    imageSource: ImageSource.Config,
+    processQueue: ProcessQueue.Config,
+    ocr: OCR.Config,
+  )
 
   def config[F[_]: ApplicativeThrow]: ConfigValue[F, Config] = (
     Indexer.config[F],
     ImageSource.config[F],
     ProcessQueue.config[F],
+    OCR.config[F],
   ).parMapN(Config)
 
   def run[F[_]: Async](config: Config): F[Nothing] = {
@@ -79,7 +86,7 @@ object Application {
       implicit0(client: Client[F])           <- makeClient
       implicit0(imageSource: ImageSource[F]) <- ImageSource.module[F](config.imageSource).toResource
       implicit0(indexer: Indexer[F])         <- Indexer.module[F](config.indexer)
-      implicit0(ocr: OCR[F])                 <- OCR.module[F].pure[Resource[F, *]]
+      implicit0(ocr: OCR[F])                 <- OCR.module[F](config.ocr).pure[Resource[F, *]]
       processQueue                           <- ProcessQueue.instance(config.processQueue)
       implicit0(index: Index[F])             <- Index.instance[F](processQueue).pure[Resource[F, *]]
       implicit0(download: Download[F])       <- Download.instance[F].pure[Resource[F, *]]
