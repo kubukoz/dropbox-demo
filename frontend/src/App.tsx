@@ -77,7 +77,7 @@ const useDeferred = (props: {
 };
 
 export const App = () => {
-  const [query, setQuery] = useState("snap");
+  const [query, setQuery] = useState("");
 
   const [results, setResults] = useState<Results>([]);
 
@@ -99,7 +99,7 @@ export const App = () => {
 
   return (
     <>
-      <h1 style={{ fontFamily: "Helvetica" }}>Search my snapchat</h1>
+      <h1 style={{ fontFamily: "Helvetica" }}>Search my images</h1>
       <SearchBox
         placeholder="Search phrase"
         initial={query}
