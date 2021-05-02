@@ -11,7 +11,7 @@ trait Download[F[_]] {
   // This is *almost* a Resource, with the exception that the resource isn't cleaned up automatically after useResources completes.
   // The responsibility of closing the resource is in the hands of `useResources`.
   // This is due to http4s's current shape of a route - this might change in the future to make this pattern easier and safer to use.
-  def download[A](path: Path)(toResponse: FileData[F] => F[A]): F[A]
+  def download[A](path: Path)(useResources: FileData[F] => F[A]): F[A]
 }
 
 object Download {
