@@ -108,3 +108,9 @@ object Metadata {
 }
 
 final case class FileDownload[F[_]](data: Stream[F, Byte], metadata: Metadata.FileMetadata)
+
+final case class CommitInfo(path: Path, mode: "add", autorename: Boolean)
+
+object CommitInfo {
+  implicit val codec: Codec[CommitInfo] = deriveCodec
+}

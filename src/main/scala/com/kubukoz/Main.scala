@@ -20,6 +20,14 @@ import org.http4s.server.Server
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import com.kubukoz.imagesource.dropbox.Dropbox
+import com.kubukoz.shared.FileData
+import com.kubukoz.shared.FileMetadata
+import org.http4s.MediaType
+import fs2.io.file.Files
+import java.nio.file.Paths
+import com.kubukoz.shared.UploadFileData
+import com.kubukoz.shared.Path
 
 object Main extends IOApp.Simple {
 
@@ -66,5 +74,27 @@ object Application {
       implicit0(search: Search[F])           <- Search.instance[F](serverInfo.get).pure[Resource[F, *]]
       server                                 <- HttpServer.instance[F](config.http).evalTap(serverInfo.complete)
     } yield server
+
+}
+
+object DropboxDemo extends IOApp.Simple {
+
+  implicit val logger: SelfAwareStructuredLogger[IO] =
+    Slf4jLogger.getLogger
+
+  def run: IO[Unit] = HttpClient.instance[IO].use { implicit client =>
+    ImageSource
+      .config[IO]
+      .resource
+      .flatMap(ImageSource.module[IO](_).toResource)
+      .use(
+        _.uploadFile(
+          UploadFileData(
+            Files[IO].readAll(Paths.get("/Users/jkoslowski/Desktop/test.jpg"), 4096),
+            Path("/test.jpg"),
+          )
+        )
+      )
+  }
 
 }

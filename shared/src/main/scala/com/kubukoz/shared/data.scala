@@ -5,6 +5,8 @@ import org.http4s.MediaType
 import org.http4s.Uri
 
 final case class FileData[+F[_]](content: Stream[F, Byte], metadata: FileMetadata)
+
+final case class UploadFileData[+F[_]](content: Stream[F, Byte], path: Path)
 final case class FileMetadata(path: String, mediaType: MediaType)
 
 final case class Path(value: String)

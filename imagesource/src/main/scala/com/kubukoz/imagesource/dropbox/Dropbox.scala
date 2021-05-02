@@ -12,6 +12,7 @@ import fs2.Stream
 import io.circe.Decoder
 import io.circe.Printer
 import io.circe.literal._
+import io.circe.syntax._
 import org.http4s.AuthScheme
 import org.http4s.Credentials
 import org.http4s.Header
@@ -24,6 +25,7 @@ import org.http4s.client.middleware.Retry
 import org.http4s.client.middleware.RetryPolicy
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.Authorization
+import org.http4s.headers.`Content-Type`
 import org.http4s.implicits._
 import org.typelevel.ci.CIString
 import org.typelevel.log4cats.Logger
@@ -31,11 +33,13 @@ import org.typelevel.log4cats.Logger
 import scala.concurrent.duration._
 
 import util.chaining._
+import org.http4s.MediaType
 
 private[imagesource] trait Dropbox[F[_]] {
   def listFolder(path: Path, recursive: Boolean): F[Paginable[Metadata]]
   def listFolderContinue(cursor: String): F[Paginable[Metadata]]
   def download(filePath: Path): Resource[F, FileDownload[F]]
+  def upload(data: Stream[F, Byte], request: CommitInfo): F[Metadata.FileMetadata]
 }
 
 object Dropbox {
@@ -114,6 +118,19 @@ object Dropbox {
           metadata = metadata,
         )
       }
+
+      def upload(data: Stream[F, Byte], request: CommitInfo): F[Metadata.FileMetadata] =
+        client.expect[Metadata.FileMetadata](
+          POST(uri"https://content.dropboxapi.com/2/files/upload")
+            .putHeaders(
+              Header.Raw(
+                name = CIString("Dropbox-API-Arg"),
+                value = request.asJson.printWith(Printer.noSpaces.copy(escapeNonAscii = true)),
+              )
+            )
+            // .withContentType(`Content-Type`(MediaType.application.`octet-stream`))
+            .withEntity(data)
+        )
     }
 
     Logger[F].info(s"Starting Dropbox client with token: $token").as(theDropbox)

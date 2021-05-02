@@ -41,8 +41,8 @@ object SearchTests extends ScopedResourceIOSuite {
   test("finding a matching indexed document") { res =>
     import res._
 
-    val file = fakeFile("file content", "/hello/1")
-    val file2 = fakeFile("file that doesn't match query", "/hello/2")
+    val file = fakeFile("file content", "/hello/1.jpg")
+    val file2 = fakeFile("file that doesn't match query", "/hello/2.jpg")
 
     {
       indexer.index(file.fileDocument) *>
@@ -57,7 +57,7 @@ object SearchTests extends ScopedResourceIOSuite {
   test("file indexed twice contains at least the second result") { res =>
     import res._
 
-    val file = fakeFile("file content", "/hello/1")
+    val file = fakeFile("file content", "/hello/1.jpg")
     val fileV2 = file.copy(content = "file content updated")
 
     {

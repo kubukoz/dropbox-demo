@@ -6,13 +6,20 @@ import cats.effect.kernel.Resource
 import cats.implicits._
 import com.kubukoz.FiberRef
 import com.kubukoz.shared.FileData
+import com.kubukoz.shared.FileMetadata
 import com.kubukoz.shared.Path
+import com.kubukoz.shared.UploadFileData
 
 object TestImageSourceInstances {
 
-  def instance[F[_]: FiberRef.Make: MonadThrow]: F[ImageSource[F] with Ops[F]] =
+  def instance[F[_]: FiberRef.Make: MonadThrow]: F[ImageSource[F]] =
     FiberRef[F].of(List.empty[FileData[F]]).map { ref =>
-      new ImageSource[F] with Ops[F] {
+      new ImageSource[F] {
+        private def uploadToDownload(upload: UploadFileData[F]): F[FileData[F]] =
+          ImageSource.toMediaType[F](upload.path.value).map { mediaType =>
+            FileData(content = upload.content, metadata = FileMetadata(upload.path.value, mediaType = mediaType))
+          }
+
         def streamFolder(rawPath: Path): fs2.Stream[F, FileData[F]] = fs2
           .Stream
           .evals(ref.get)
@@ -27,17 +34,9 @@ object TestImageSourceInstances {
             )
             .toResource
 
-        def uploadFile(data: FileData[F]): F[Unit] =
-          ref.update(_ :+ data)
+        def uploadFile(data: UploadFileData[F]): F[Unit] =
+          uploadToDownload(data).flatMap(a => ref.update(_ :+ a))
       }
     }
-
-  trait Ops[F[_]] {
-    def uploadFile(data: FileData[F]): F[Unit]
-  }
-
-  object Ops {
-    def apply[F[_]](implicit F: Ops[F]): Ops[F] = F
-  }
 
 }
