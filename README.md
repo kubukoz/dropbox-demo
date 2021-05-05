@@ -149,7 +149,7 @@ Transfer-Encoding: chunked
 API:
 
 ```shell
-http :4000/view/%2Fcamera%20uploads%2Fsnapy%2Fsnapchat-2233206587164039483.jpg
+http :4000/view/%2Fimages%2Ffile2.jpg
 ```
 
 ```http
