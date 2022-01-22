@@ -1,6 +1,7 @@
 **/.direnv
 **/target
 env.sh
+**/.vscode/
 
 docker/elastic-data
 

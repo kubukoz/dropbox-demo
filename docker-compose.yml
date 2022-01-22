@@ -2,11 +2,11 @@ services:
   elastic:
     environment:
       discovery.type: single-node
-      opendistro_security.ssl.http.enabled: 'false'
-    image: amazon/opendistro-for-elasticsearch:1.13.1
+      plugins.security.ssl.http.enabled: 'false'
+    image: opensearchproject/opensearch:1.2.4
     ports:
       - "9200:9200"
       - "9600:9600"
     volumes:
-      - "./docker/elastic-data:/usr/share/elasticsearch/data"
+      - "./docker/elastic-data:/usr/share/opensearch/data"
 version: '3'
