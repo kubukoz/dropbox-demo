@@ -25,7 +25,6 @@ import org.http4s.client.middleware.Retry
 import org.http4s.client.middleware.RetryPolicy
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.Authorization
-import org.http4s.headers.`Content-Type`
 import org.http4s.implicits._
 import org.typelevel.ci.CIString
 import org.typelevel.log4cats.Logger
@@ -33,7 +32,6 @@ import org.typelevel.log4cats.Logger
 import scala.concurrent.duration._
 
 import util.chaining._
-import org.http4s.MediaType
 
 private[imagesource] trait Dropbox[F[_]] {
   def listFolder(path: Path, recursive: Boolean): F[Paginable[Metadata]]
