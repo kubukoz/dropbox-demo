@@ -8,7 +8,7 @@ An application accompanying [my talk about structuring functional applications i
 
 Prerequisites: sbt, Elasticsearch running on `localhost:9200`, `tesseract` binary available on the `PATH` and runnable.
 
-Elasticsearch is available in the attached `docker-compose` setup (the `.yml` file is generated from the [Dhall](https://dhall-lang.org/) file with the `make dcp` command, but the one in the repository should work). `tesseract` is available if you enter the attached `nix-shell`. The shell will also load environment variables from the `env.sh` file, if you have one (it's ignored in git).
+Elasticsearch is available in the attached `docker-compose` setup. `tesseract` is available if you enter the attached `nix-shell`. The shell will also load environment variables from the `env.sh` file, if you have one (it's ignored in git).
 
 Once you have these: `sbt run` - at time of writing the application starts on `0.0.0.0:4000`, this can be configured with the `HTTP_HOST`/`HTTP_PORT` environment variables.
 
