@@ -21,6 +21,8 @@ val Deps = new {
 ThisBuild / organization := "com.kubukoz"
 ThisBuild / scalaVersion := "2.13.8"
 
+ThisBuild / githubWorkflowPublish := Seq()
+
 def crossPlugin(x: sbt.librarymanagement.ModuleID) =
   compilerPlugin(x.cross(CrossVersion.full))
 
