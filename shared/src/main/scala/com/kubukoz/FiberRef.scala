@@ -3,7 +3,6 @@ package com.kubukoz
 import cats.effect.IO
 import cats.effect.IOLocal
 import cats.effect.kernel.Ref
-import cats.implicits._
 import cats.~>
 
 // stolen from https://github.com/typelevel/cats-effect/pull/1822/files

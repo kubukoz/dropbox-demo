@@ -1,5 +1,5 @@
 let
-  pkgs = import ./nix/pkgs.nix {};
+  pkgs = import ./nix/pkgs.nix { };
 in
 pkgs.mkShell {
   buildInputs = [ pkgs.tesseract ];

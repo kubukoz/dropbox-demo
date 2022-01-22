@@ -1,11 +1,11 @@
 val Versions = new {
-  val http4s = "1.0.0-M21"
-  val circe = "0.14.0-M5"
+  val http4s = "0.23.7"
+  val circe = "0.14.1"
 }
 
 val Deps = new {
-  val log4cats = "org.typelevel" %% "log4cats-core" % "2.0.0"
-  val ciris = "is.cir" %% "ciris" % "2.0.0-RC2"
+  val log4cats = "org.typelevel" %% "log4cats-core" % "2.1.1"
+  val ciris = "is.cir" %% "ciris" % "2.3.1"
   val circeGeneric = "io.circe" %% "circe-generic" % Versions.circe
 
   val circeLiteral = Seq(
@@ -19,15 +19,14 @@ val Deps = new {
 }
 
 ThisBuild / organization := "com.kubukoz"
-ThisBuild / scalaVersion := "2.13.5"
+ThisBuild / scalaVersion := "2.13.8"
 
 def crossPlugin(x: sbt.librarymanagement.ModuleID) =
   compilerPlugin(x.cross(CrossVersion.full))
 
 val compilerPlugins = List(
-  crossPlugin("org.typelevel" % "kind-projector" % "0.11.3"),
-  crossPlugin("com.github.cb372" % "scala-typed-holes" % "0.1.8"),
-  crossPlugin("com.kubukoz" % "better-tostring" % "0.2.10"),
+  crossPlugin("org.typelevel" % "kind-projector" % "0.13.2"),
+  crossPlugin("org.polyvariant" % "better-tostring" % "0.3.13"),
   compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
 )
 
@@ -90,8 +89,8 @@ lazy val root = (project in file("."))
       "org.http4s" %% "http4s-blaze-server" % Versions.http4s,
       "io.scalaland" %% "chimney" % "0.6.0",
       "org.typelevel" %% "log4cats-slf4j" % "2.0.0",
-      "ch.qos.logback" % "logback-classic" % "1.2.3",
-      "com.disneystreaming" %% "weaver-cats" % "0.7.2" % Test,
+      "ch.qos.logback" % "logback-classic" % "1.2.7",
+      "com.disneystreaming" %% "weaver-cats" % "0.7.9" % Test,
     ),
   )
   .enablePlugins(JavaAppPackaging)

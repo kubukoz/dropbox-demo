@@ -1,6 +1,7 @@
 package com.kubukoz.routing
 
 import cats.Monad
+import cats.data.OptionT
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.implicits._
@@ -14,15 +15,17 @@ import io.circe.generic.semiauto._
 import io.scalaland.chimney.dsl._
 import org.http4s.HttpRoutes
 import org.http4s.Uri
+import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.headers.`Content-Type`
 import org.http4s.implicits._
 import org.http4s.server.Server
-import org.http4s.server.blaze.BlazeServerBuilder
 import org.http4s.server.middleware.CORS
+import org.http4s.server.middleware.CORSConfig
 import org.http4s.server.middleware.{Logger => ServerLogger}
 import org.typelevel.log4cats.Logger
+import scala.annotation.nowarn
 
 object HttpServer {
 
@@ -41,20 +44,20 @@ object HttpServer {
   final case class Config(port: Int, host: String)
 
   private[routing] def makeServer[F[_]: Async: Logger](routes: HttpRoutes[F], config: Config): Resource[F, Server] =
-    Resource
-      .eval(Async[F].executionContext)
-      .flatMap {
-        BlazeServerBuilder[F](_)
-          .bindHttp(port = config.port, host = config.host)
-          .withHttpApp(
-            ServerLogger
-              .httpRoutes(logHeaders = true, logBody = false, logAction = Some(Logger[F].debug(_: String)))(
-                CORS.httpRoutes[F](routes)
-              )
-              .orNotFound
+    BlazeServerBuilder[F]
+      .bindHttp(port = config.port, host = config.host)
+      .withHttpApp(
+        ServerLogger
+          .httpRoutes(logHeaders = true, logBody = false, logAction = Some(Logger[F].debug(_: String)))(
+            CORS[OptionT[F, *], F](
+              routes,
+              //todo configure
+              CORSConfig.default,
+            ): @nowarn()
           )
-          .resource
-      }
+          .orNotFound
+      )
+      .resource
 
   private[routing] def routes[F[_]: Index: Search: Download: JsonDecoder: Monad]: HttpRoutes[F] = {
     object dsl extends Http4sDsl[F]

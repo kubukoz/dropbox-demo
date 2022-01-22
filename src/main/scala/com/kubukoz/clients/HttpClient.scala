@@ -2,9 +2,9 @@ package com.kubukoz.clients
 
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
+import org.http4s.blaze.client.BlazeClientBuilder
 import org.http4s.client
 import org.http4s.client.Client
-import org.http4s.client.blaze.BlazeClientBuilder
 import org.typelevel.log4cats.Logger
 
 object HttpClient {
@@ -19,9 +19,8 @@ object HttpClient {
         logAction = Some(Logger[F].debug(_: String)),
       ) _
 
-    Resource
-      .eval(Async[F].executionContext)
-      .flatMap(BlazeClientBuilder[F](_).resource)
+    BlazeClientBuilder[F]
+      .resource
       .map(clientLogger)
   }
 

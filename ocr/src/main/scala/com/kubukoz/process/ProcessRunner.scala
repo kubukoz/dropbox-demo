@@ -30,6 +30,7 @@ object ProcessRunner {
   }
 
   // This is a relatively barebones implementation, for the real deal go use something like vigoo/prox
+  //todo: Chris has a library for this now
   implicit def instance[F[_]: Async]: ProcessRunner[F] = new ProcessRunner[F] {
     import scala.jdk.CollectionConverters._
 
@@ -67,8 +68,8 @@ object ProcessRunner {
 
               val exitCode: F[ExitCode] = done.flatMap(p => Sync[F].blocking(p.exitValue())).map(ExitCode(_))
 
-              val outputUtf8: fs2.Stream[F, String] = output.through(fs2.text.utf8Decode[F])
-              val errorOutputUtf8: fs2.Stream[F, String] = errorOutput.through(fs2.text.utf8Decode[F])
+              val outputUtf8: fs2.Stream[F, String] = output.through(fs2.text.utf8.decode[F])
+              val errorOutputUtf8: fs2.Stream[F, String] = errorOutput.through(fs2.text.utf8.decode[F])
             }
           }
         }

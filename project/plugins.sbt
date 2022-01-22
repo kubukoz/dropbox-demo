@@ -1,3 +1,3 @@
-addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat" % "0.1.17")
-addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.8.1")
-addSbtPlugin("com.codecommit" % "sbt-github-actions" % "0.10.1")
+addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat" % "0.1.20")
+addSbtPlugin("com.github.sbt" % "sbt-native-packager" % "1.9.4")
+addSbtPlugin("com.codecommit" % "sbt-github-actions" % "0.14.2")
